@@ -2,6 +2,7 @@
 // set up before any errors are thrown.
 import "./instrument.js"
 
+import "./tailwind.css"
 import "./admin.scss"
 import "@ourworldindata/grapher/src/core/grapher.scss"
 import "./ExplorerCreatePage.scss"
