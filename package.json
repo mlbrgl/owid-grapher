@@ -147,6 +147,7 @@
         "papaparse": "^5.5.3",
         "polylabel": "^2.0.1",
         "progress": "^2.0.3",
+        "radix-ui": "^1.4.3",
         "react": "^19.2.0",
         "react-aria-components": "^1.14.0",
         "react-color": "^2.18.1",

@@ -1,10 +1,18 @@
-import { Component } from "react"
-import { observer } from "mobx-react"
-import { observable, action, runInAction, makeObservable } from "mobx"
+import { useContext, useEffect } from "react"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { AdminLayout } from "./AdminLayout.js"
-import { FieldsRow } from "./Forms.js"
 import { Link } from "./Link.js"
-import { AdminAppContext, AdminAppContextType } from "./AdminAppContext.js"
+import { AdminAppContext } from "./AdminAppContext.js"
+import { Admin } from "./Admin.js"
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from "./components/ui/table.js"
+import { Button } from "./components/ui/button.js"
 
 interface RedirectListItem {
     id: number
@@ -13,56 +21,47 @@ interface RedirectListItem {
     chartSlug: string
 }
 
-interface RedirectRowProps {
-    redirect: RedirectListItem
-    onDelete: (redirect: RedirectListItem) => void
+async function fetchRedirects(admin: Admin): Promise<RedirectListItem[]> {
+    const json = await admin.getJSON<{ redirects: RedirectListItem[] }>(
+        "/api/redirects.json"
+    )
+    return json.redirects
 }
 
-@observer
-class RedirectRow extends Component<RedirectRowProps> {
-    static override contextType = AdminAppContext
-    declare context: AdminAppContextType
-
-    override render() {
-        const { redirect } = this.props
-
-        return (
-            <tr>
-                <td>{redirect.slug}</td>
-                <td>
-                    <Link to={`/charts/${redirect.chartId}/edit`}>
-                        {redirect.chartSlug}
-                    </Link>
-                </td>
-                <td>
-                    <button
-                        className="btn btn-danger"
-                        onClick={() => this.props.onDelete(redirect)}
-                    >
-                        Delete
-                    </button>
-                </td>
-            </tr>
-        )
+async function deleteRedirect(admin: Admin, id: number): Promise<void> {
+    const json = await admin.requestJSON<{ success: boolean }>(
+        `/api/redirects/${id}`,
+        {},
+        "DELETE"
+    )
+    if (!json.success) {
+        throw new Error("Failed to delete redirect")
     }
 }
 
-@observer
-export class RedirectsIndexPage extends Component {
-    static override contextType = AdminAppContext
-    declare context: AdminAppContextType
+export function RedirectsIndexPage() {
+    const { admin } = useContext(AdminAppContext)
+    const queryClient = useQueryClient()
 
-    redirects: RedirectListItem[] = []
+    useEffect(() => {
+        admin.loadingIndicatorSetting = "off"
+        return () => {
+            admin.loadingIndicatorSetting = "default"
+        }
+    }, [admin])
 
-    constructor(props: Record<string, never>) {
-        super(props)
+    const { data: redirects } = useQuery({
+        queryKey: ["chartRedirects"],
+        queryFn: () => fetchRedirects(admin),
+    })
 
-        makeObservable(this, {
-            redirects: observable,
-        })
-    }
+    const deleteMutation = useMutation({
+        mutationFn: (id: number) => deleteRedirect(admin, id),
+        onSuccess: () =>
+            queryClient.invalidateQueries({ queryKey: ["chartRedirects"] }),
+    })
 
-    @action.bound async onDelete(redirect: RedirectListItem) {
+    function handleDelete(redirect: RedirectListItem) {
         if (
             !window.confirm(
                 `Delete the redirect from ${redirect.slug}? This action may break existing embeds!`
@@ -70,61 +69,52 @@ export class RedirectsIndexPage extends Component {
         )
             return
 
-        const json = await this.context.admin.requestJSON(
-            `/api/redirects/${redirect.id}`,
-            {},
-            "DELETE"
-        )
-
-        if (json.success) {
-            runInAction(() =>
-                this.redirects.splice(this.redirects.indexOf(redirect), 1)
-            )
-        }
+        deleteMutation.mutate(redirect.id)
     }
 
-    override render() {
-        const { redirects } = this
-
-        return (
-            <AdminLayout title="Chart Redirects">
-                <main className="RedirectsIndexPage">
-                    <FieldsRow>
-                        <span>Showing {redirects.length} redirects</span>
-                    </FieldsRow>
-                    <p>
-                        Redirects are automatically created when the slug of a
-                        published chart is changed.
-                    </p>
-                    <table className="table table-bordered">
-                        <tbody>
-                            <tr>
-                                <th>Slug</th>
-                                <th>Redirects To</th>
-                                <th></th>
-                            </tr>
-                            {redirects.map((redirect) => (
-                                <RedirectRow
-                                    key={redirect.id}
-                                    redirect={redirect}
-                                    onDelete={this.onDelete}
-                                />
-                            ))}
-                        </tbody>
-                    </table>
-                </main>
-            </AdminLayout>
-        )
-    }
-
-    async getData() {
-        const json = await this.context.admin.getJSON("/api/redirects.json")
-        runInAction(() => {
-            this.redirects = json.redirects
-        })
-    }
-
-    override componentDidMount() {
-        void this.getData()
-    }
+    return (
+        <AdminLayout title="Chart Redirects">
+            <main className="RedirectsIndexPage">
+                <p className="mb-2 text-sm text-muted-foreground">
+                    Showing {redirects?.length ?? 0} redirects
+                </p>
+                <p className="mb-4">
+                    Redirects are automatically created when the slug of a
+                    published chart is changed.
+                </p>
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Slug</TableHead>
+                            <TableHead>Redirects To</TableHead>
+                            <TableHead className="w-[100px]" />
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {redirects?.map((redirect) => (
+                            <TableRow key={redirect.id}>
+                                <TableCell>{redirect.slug}</TableCell>
+                                <TableCell>
+                                    <Link
+                                        to={`/charts/${redirect.chartId}/edit`}
+                                    >
+                                        {redirect.chartSlug}
+                                    </Link>
+                                </TableCell>
+                                <TableCell>
+                                    <Button
+                                        variant="destructive"
+                                        size="sm"
+                                        onClick={() => handleDelete(redirect)}
+                                    >
+                                        Delete
+                                    </Button>
+                                </TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+            </main>
+        </AdminLayout>
+    )
 }
