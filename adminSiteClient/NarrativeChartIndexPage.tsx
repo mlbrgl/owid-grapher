@@ -1,6 +1,5 @@
 import { useCallback, useContext, useEffect, useMemo, useState } from "react"
 import * as React from "react"
-import { Button, Flex, Input, Space, Table, TableColumnsType } from "antd"
 
 import { AdminLayout } from "./AdminLayout.js"
 import { AdminAppContext } from "./AdminAppContext.js"
@@ -13,102 +12,19 @@ import {
     filterFunctionForSearchWords,
     highlightFunctionForSearchWords,
 } from "../adminShared/search.js"
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from "./components/ui/table.js"
+import { Button } from "./components/ui/button.js"
+import { Input } from "./components/ui/input.js"
 
-function createColumns(ctx: {
-    highlightFn: (
-        text: string | null | undefined
-    ) => React.ReactElement | string
-    deleteFn: (narrativeChartId: number) => void
-}): TableColumnsType<ApiNarrativeChartOverview> {
-    return [
-        {
-            title: "Preview",
-            key: "chartConfigId",
-            dataIndex: "chartConfigId",
-            width: 200,
-            render: (chartConfigId) => (
-                <img
-                    src={`${GRAPHER_DYNAMIC_THUMBNAIL_URL}/by-uuid/${chartConfigId}.svg`}
-                    style={{ maxWidth: 200, maxHeight: 200 }}
-                />
-            ),
-        },
-        {
-            title: "Name",
-            dataIndex: "name",
-            key: "name",
-            width: 150,
-            render: (name) => ctx.highlightFn(name),
-        },
-        {
-            title: "Title",
-            dataIndex: "title",
-            key: "title",
-            render: (title) => ctx.highlightFn(title),
-        },
-        {
-            title: "ID",
-            dataIndex: "id",
-            width: 50,
-            key: "id",
-        },
-        {
-            title: "Parent",
-            dataIndex: "parent",
-            key: "parent",
-            render: (parent) => {
-                const title = ctx.highlightFn(parent.title)
-                if (!parent.url) return title
-                return parent.type === "chart" ? (
-                    <Link to={parent.url}>{title}</Link>
-                ) : (
-                    <a
-                        href={`/admin${parent.url}`}
-                        target="_blank"
-                        rel="noopener"
-                    >
-                        {title}
-                    </a>
-                )
-            },
-            width: 200,
-        },
-        {
-            title: "Last updated",
-            dataIndex: "updatedAt",
-            key: "updatedAt",
-            width: 150,
-            defaultSortOrder: "descend",
-            sorter: (a, b) =>
-                a.updatedAt && b.updatedAt
-                    ? new Date(a.updatedAt).getTime() -
-                      new Date(b.updatedAt).getTime()
-                    : 0,
-            render: (time, narrativeChart) => (
-                <Timeago time={time} by={narrativeChart.lastEditedByUser} />
-            ),
-        },
-        {
-            title: "Action",
-            key: "action",
-            width: 100,
-            render: (_, narrativeChart) => (
-                <Space size="middle">
-                    <Link to={`/narrative-charts/${narrativeChart.id}/edit`}>
-                        <Button type="primary">Edit</Button>
-                    </Link>
-                    <Button
-                        type="dashed"
-                        danger
-                        onClick={() => ctx.deleteFn(narrativeChart.id)}
-                    >
-                        Delete
-                    </Button>
-                </Space>
-            ),
-        },
-    ]
-}
+type SortField = "updatedAt"
+type SortDirection = "asc" | "desc"
 
 export function NarrativeChartIndexPage() {
     const { admin } = useContext(AdminAppContext)
@@ -116,6 +32,8 @@ export function NarrativeChartIndexPage() {
         ApiNarrativeChartOverview[]
     >([])
     const [searchValue, setSearchValue] = useState("")
+    const [sortField, setSortField] = useState<SortField>("updatedAt")
+    const [sortDirection, setSortDirection] = useState<SortDirection>("desc")
 
     const searchWords = useMemo(
         () => buildSearchWordsFromSearchString(searchValue),
@@ -133,13 +51,28 @@ export function NarrativeChartIndexPage() {
             ]
         )
 
-        return narrativeCharts.filter(filterFn)
-    }, [narrativeCharts, searchWords])
+        const filtered = narrativeCharts.filter(filterFn)
+
+        filtered.sort((a, b) => {
+            if (sortField === "updatedAt") {
+                if (!a.updatedAt || !b.updatedAt) return 0
+                const diff =
+                    new Date(a.updatedAt).getTime() -
+                    new Date(b.updatedAt).getTime()
+                return sortDirection === "asc" ? diff : -diff
+            }
+            return 0
+        })
+
+        return filtered
+    }, [narrativeCharts, searchWords, sortField, sortDirection])
+
     const highlightFn = useMemo(
         () => highlightFunctionForSearchWords(searchWords),
         [searchWords]
     )
-    const deleteFn = useCallback(
+
+    const handleDelete = useCallback(
         async (narrativeChartId: number) => {
             if (
                 confirm("Are you sure you want to delete this narrative chart?")
@@ -156,10 +89,15 @@ export function NarrativeChartIndexPage() {
         },
         [admin]
     )
-    const columns = useMemo(
-        () => createColumns({ highlightFn, deleteFn }),
-        [highlightFn, deleteFn]
-    )
+
+    function toggleSort(field: SortField) {
+        if (sortField === field) {
+            setSortDirection((d) => (d === "asc" ? "desc" : "asc"))
+        } else {
+            setSortField(field)
+            setSortDirection("desc")
+        }
+    }
 
     useEffect(() => {
         const getNarrativeCharts = async () =>
@@ -174,17 +112,107 @@ export function NarrativeChartIndexPage() {
 
     return (
         <AdminLayout title="Narrative charts">
-            <main>
-                <Flex justify="space-between">
+            <main className="NarrativeChartIndexPage">
+                <div className="mb-4 flex items-center justify-between">
                     <Input
-                        placeholder="Search"
+                        placeholder="Search..."
                         value={searchValue}
                         onChange={(e) => setSearchValue(e.target.value)}
-                        style={{ width: 500, marginBottom: 20 }}
+                        className="max-w-md"
                     />
-                </Flex>
-                <Table columns={columns} dataSource={filteredNarrativeCharts} />
+                </div>
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead className="w-[200px]">
+                                Preview
+                            </TableHead>
+                            <TableHead className="w-[150px]">Name</TableHead>
+                            <TableHead>Title</TableHead>
+                            <TableHead className="w-[50px]">ID</TableHead>
+                            <TableHead className="w-[200px]">
+                                Parent
+                            </TableHead>
+                            <TableHead
+                                className="w-[150px] cursor-pointer select-none"
+                                onClick={() => toggleSort("updatedAt")}
+                            >
+                                Last updated{" "}
+                                {sortField === "updatedAt" &&
+                                    (sortDirection === "desc" ? "↓" : "↑")}
+                            </TableHead>
+                            <TableHead className="w-[100px]" />
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {filteredNarrativeCharts.map((nc) => (
+                            <TableRow key={nc.id}>
+                                <TableCell>
+                                    <img
+                                        src={`${GRAPHER_DYNAMIC_THUMBNAIL_URL}/by-uuid/${nc.chartConfigId}.svg`}
+                                        className="max-h-[200px] max-w-[200px]"
+                                    />
+                                </TableCell>
+                                <TableCell>{highlightFn(nc.name)}</TableCell>
+                                <TableCell>{highlightFn(nc.title)}</TableCell>
+                                <TableCell>{nc.id}</TableCell>
+                                <TableCell>
+                                    <ParentLink
+                                        parent={nc.parent}
+                                        highlightFn={highlightFn}
+                                    />
+                                </TableCell>
+                                <TableCell>
+                                    <Timeago
+                                        time={nc.updatedAt}
+                                        by={nc.lastEditedByUser}
+                                    />
+                                </TableCell>
+                                <TableCell>
+                                    <div className="flex items-center gap-2">
+                                        <Button variant="outline" asChild>
+                                            <Link
+                                                to={`/narrative-charts/${nc.id}/edit`}
+                                            >
+                                                Edit
+                                            </Link>
+                                        </Button>
+                                        <Button
+                                            variant="destructive"
+                                            size="sm"
+                                            onClick={() =>
+                                                void handleDelete(nc.id)
+                                            }
+                                        >
+                                            Delete
+                                        </Button>
+                                    </div>
+                                </TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
             </main>
         </AdminLayout>
+    )
+}
+
+function ParentLink({
+    parent,
+    highlightFn,
+}: {
+    parent: ApiNarrativeChartOverview["parent"]
+    highlightFn: (
+        text: string | null | undefined
+    ) => React.ReactElement | string
+}) {
+    const title = highlightFn(parent.title)
+    if (!parent.url) return <>{title}</>
+    return parent.type === "chart" ? (
+        <Link to={parent.url}>{title}</Link>
+    ) : (
+        <a href={`/admin${parent.url}`} target="_blank" rel="noopener">
+            {title}
+        </a>
     )
 }
