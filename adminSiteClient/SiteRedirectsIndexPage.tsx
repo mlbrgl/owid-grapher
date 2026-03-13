@@ -1,23 +1,23 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useContext, useEffect, useMemo, useState } from "react"
-import {
-    Alert,
-    Button,
-    Flex,
-    Form,
-    Input,
-    Popconfirm,
-    Space,
-    Table,
-    TableColumnsType,
-    Typography,
-    notification,
-} from "antd"
+import { Info } from "lucide-react"
 import { BAKED_BASE_URL } from "../settings/clientSettings.js"
 import { AdminAppContext } from "./AdminAppContext.js"
 import { AdminLayout } from "./AdminLayout.js"
 import { Link } from "./Link.js"
 import { Admin } from "./Admin.js"
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from "./components/ui/table.js"
+import { Button } from "./components/ui/button.js"
+import { Input } from "./components/ui/input.js"
+import { Label } from "./components/ui/label.js"
+import { Alert, AlertDescription, AlertTitle } from "./components/ui/alert.js"
 
 const SOURCE_PATTERN = /^\/$|^\/.*[^/]+$/
 const INVALID_SOURCE_MESSAGE =
@@ -26,18 +26,20 @@ const TARGET_PATTERN = /^\/$|^(https?:\/\/|\/).*[^/]+$/
 const INVALID_TARGET_MESSAGE =
     "URL must start with a slash or http(s):// and cannot end with a slash, unless it's the root."
 
+const PAGE_SIZE = 20
+
 type Redirect = {
     id: number
     source: string
     target: string
 }
 
-type FormData = {
-    source: string
-    target: string
+type FormErrors = {
+    source?: string
+    target?: string
 }
 
-async function fetchRedirects(admin: Admin) {
+async function fetchRedirects(admin: Admin): Promise<Redirect[]> {
     const { redirects } = await admin.getJSON<{ redirects: Redirect[] }>(
         "/api/site-redirects.json"
     )
@@ -47,7 +49,7 @@ async function fetchRedirects(admin: Admin) {
 async function createRedirect(
     admin: Admin,
     data: { source: string; target: string }
-) {
+): Promise<Redirect> {
     const sourceUrl = new URL(data.source, window.location.origin)
     const sourcePath = sourceUrl.pathname
     const json = await admin.requestJSON<{
@@ -64,7 +66,7 @@ async function createRedirect(
     return json.redirect
 }
 
-async function deleteRedirect(admin: Admin, id: number) {
+async function deleteRedirect(admin: Admin, id: number): Promise<void> {
     const json = await admin.requestJSON<{ success: boolean }>(
         `/api/site-redirects/${id}`,
         {},
@@ -75,65 +77,46 @@ async function deleteRedirect(admin: Admin, id: number) {
     }
 }
 
-function createColumns(
-    onDelete: (id: number) => void
-): TableColumnsType<Redirect> {
-    return [
-        {
-            title: "Source",
-            dataIndex: "source",
-            key: "source",
-            render: (source) => (
-                <Typography.Text style={{ wordBreak: "break-all" }}>
-                    {source}
-                </Typography.Text>
-            ),
-        },
-        {
-            title: "Target",
-            dataIndex: "target",
-            key: "target",
-            render: (target) => {
-                const targetUrl = new URL(target, BAKED_BASE_URL)
-                return (
-                    <a
-                        href={targetUrl.href}
-                        target="_blank"
-                        rel="noopener"
-                        style={{ wordBreak: "break-all" }}
-                    >
-                        {target}
-                    </a>
-                )
-            },
-        },
-        {
-            title: "",
-            key: "actions",
-            width: 100,
-            render: (_, record) => (
-                <Popconfirm
-                    title={`Delete the redirect from ${record.source}?`}
-                    onConfirm={() => onDelete(record.id)}
-                    okText="Yes"
-                    cancelText="No"
-                >
-                    <Button danger size="small">
-                        Delete
-                    </Button>
-                </Popconfirm>
-            ),
-        },
-    ]
+function validateForm(source: string, target: string): FormErrors {
+    const errors: FormErrors = {}
+
+    if (!source) {
+        errors.source = "Please provide a source."
+    } else if (!SOURCE_PATTERN.test(source)) {
+        errors.source = INVALID_SOURCE_MESSAGE
+    } else {
+        const sourceUrl = new URL(source, "https://ourworldindata.org")
+        if (sourceUrl.pathname === "/") {
+            errors.source = "Source cannot be the root."
+        } else if (source === target) {
+            errors.source = "Source and target cannot be the same."
+        }
+    }
+
+    if (!target) {
+        errors.target = "Please provide a target."
+    } else if (!TARGET_PATTERN.test(target)) {
+        errors.target = INVALID_TARGET_MESSAGE
+    } else if (target === source) {
+        errors.target = "Source and target cannot be the same."
+    }
+
+    return errors
 }
 
 export default function SiteRedirectsIndexPage() {
     const { admin } = useContext(AdminAppContext)
-    const [notificationApi, notificationContextHolder] =
-        notification.useNotification()
     const queryClient = useQueryClient()
-    const [form] = Form.useForm<FormData>()
+
+    const [source, setSource] = useState("")
+    const [target, setTarget] = useState("")
+    const [formErrors, setFormErrors] = useState<FormErrors>({})
     const [search, setSearch] = useState("")
+    const [page, setPage] = useState(0)
+    const [statusMessage, setStatusMessage] = useState<{
+        type: "success" | "error"
+        text: string
+    } | null>(null)
 
     useEffect(() => {
         admin.loadingIndicatorSetting = "off"
@@ -142,27 +125,34 @@ export default function SiteRedirectsIndexPage() {
         }
     }, [admin])
 
+    // Clear status message after 3 seconds
+    useEffect(() => {
+        if (!statusMessage) return
+        const timer = setTimeout(() => setStatusMessage(null), 3000)
+        return () => clearTimeout(timer)
+    }, [statusMessage])
+
     const { data: redirects } = useQuery({
         queryKey: ["siteRedirects"],
         queryFn: () => fetchRedirects(admin),
     })
 
     const createMutation = useMutation({
-        mutationFn: (data: FormData) => createRedirect(admin, data),
+        mutationFn: (data: { source: string; target: string }) =>
+            createRedirect(admin, data),
         onSuccess: async () => {
-            notificationApi.success({
-                message: "Redirect created",
-                placement: "bottomRight",
-            })
-            form.resetFields()
+            setStatusMessage({ type: "success", text: "Redirect created" })
+            setSource("")
+            setTarget("")
+            setFormErrors({})
             return queryClient.invalidateQueries({
                 queryKey: ["siteRedirects"],
             })
         },
         onError: () => {
-            notificationApi.error({
-                message: "Error creating redirect",
-                placement: "bottomRight",
+            setStatusMessage({
+                type: "error",
+                text: "Error creating redirect",
             })
         },
     })
@@ -170,24 +160,31 @@ export default function SiteRedirectsIndexPage() {
     const deleteMutation = useMutation({
         mutationFn: (id: number) => deleteRedirect(admin, id),
         onSuccess: async () => {
-            notificationApi.success({
-                message: "Redirect deleted",
-                placement: "bottomRight",
-            })
+            setStatusMessage({ type: "success", text: "Redirect deleted" })
             return queryClient.invalidateQueries({
                 queryKey: ["siteRedirects"],
             })
         },
         onError: () => {
-            notificationApi.error({
-                message: "Error deleting redirect",
-                placement: "bottomRight",
+            setStatusMessage({
+                type: "error",
+                text: "Error deleting redirect",
             })
         },
     })
 
-    function handleSubmit(values: FormData) {
-        createMutation.mutate(values)
+    function handleSubmit(e: React.FormEvent) {
+        e.preventDefault()
+        const errors = validateForm(source, target)
+        setFormErrors(errors)
+        if (Object.keys(errors).length > 0) return
+        createMutation.mutate({ source, target })
+    }
+
+    function handleDelete(redirect: Redirect) {
+        if (!window.confirm(`Delete the redirect from ${redirect.source}?`))
+            return
+        deleteMutation.mutate(redirect.id)
     }
 
     const filteredRedirects = useMemo(() => {
@@ -199,194 +196,204 @@ export default function SiteRedirectsIndexPage() {
         )
     }, [redirects, search])
 
-    const columns = useMemo(
-        () => createColumns((id) => deleteMutation.mutate(id)),
-        [deleteMutation]
+    // Reset page when search changes
+    useEffect(() => {
+        setPage(0)
+    }, [search])
+
+    const totalFiltered = filteredRedirects?.length ?? 0
+    const totalPages = Math.ceil(totalFiltered / PAGE_SIZE)
+    const paginatedRedirects = filteredRedirects?.slice(
+        page * PAGE_SIZE,
+        (page + 1) * PAGE_SIZE
     )
 
     return (
         <AdminLayout title="Site Redirects">
-            {notificationContextHolder}
-            <main>
-                <Space
-                    direction="vertical"
-                    size="large"
-                    style={{ width: "100%" }}
+            <main className="space-y-6">
+                <Alert>
+                    <Info className="size-4" />
+                    <AlertTitle>About Site Redirects</AlertTitle>
+                    <AlertDescription>
+                        <p>
+                            This page is used to create and delete redirects for
+                            the site.
+                        </p>
+                        <ul className="list-disc pl-5">
+                            <li>
+                                For redirects to <strong>charts</strong>, create
+                                redirects on the edit page of the target chart
+                                ref tab, and delete redirects on{" "}
+                                <Link to="/redirects">
+                                    the chart redirects page
+                                </Link>
+                                .
+                            </li>
+                            <li>
+                                For redirects to <strong>multi-dims</strong>,
+                                create redirects on the edit page of the target
+                                multi-dim, and view all redirects on{" "}
+                                <Link to="/multi-dim-redirects">
+                                    the multi-dim redirects page
+                                </Link>
+                                .
+                            </li>
+                        </ul>
+                        <p>
+                            The source has to start with a slash. Any query
+                            parameters (/war-and-peace
+                            <span className="underline">
+                                ?insight=insightid
+                            </span>
+                            ) or fragments (/war-and-peace
+                            <span className="underline">#all-charts</span>) will
+                            be stripped, if present.
+                        </p>
+                        <p>
+                            The target can point to a full URL at another domain
+                            or a relative URL starting with a slash and both
+                            query parameters and fragments are allowed.
+                        </p>
+                        <p>
+                            To redirect to our homepage use a single slash as
+                            the target.
+                        </p>
+                    </AlertDescription>
+                </Alert>
+
+                <form
+                    onSubmit={handleSubmit}
+                    className="flex flex-wrap items-end gap-4"
                 >
-                    <Alert
-                        message="About Site Redirects"
-                        description={
-                            <>
-                                <Typography.Paragraph>
-                                    This page is used to create and delete
-                                    redirects for the site.
-                                </Typography.Paragraph>
-                                <ul>
-                                    <li>
-                                        For redirects to <strong>charts</strong>
-                                        , create redirects on the edit page of
-                                        the target chart ref tab, and delete
-                                        redirects on{" "}
-                                        <Link to="/redirects">
-                                            the chart redirects page
-                                        </Link>
-                                        .
-                                    </li>
-                                    <li>
-                                        For redirects to{" "}
-                                        <strong>multi-dims</strong>, create
-                                        redirects on the edit page of the target
-                                        multi-dim, and view all redirects on{" "}
-                                        <Link to="/multi-dim-redirects">
-                                            the multi-dim redirects page
-                                        </Link>
-                                        .
-                                    </li>
-                                </ul>
-                                <Typography.Paragraph>
-                                    The source has to start with a slash. Any
-                                    query parameters (/war-and-peace
-                                    <Typography.Text underline>
-                                        ?insight=insightid
-                                    </Typography.Text>
-                                    ) or fragments (/war-and-peace
-                                    <Typography.Text underline>
-                                        #all-charts
-                                    </Typography.Text>
-                                    ) will be stripped, if present.
-                                </Typography.Paragraph>
-                                <Typography.Paragraph>
-                                    The target can point to a full URL at
-                                    another domain or a relative URL starting
-                                    with a slash and both query parameters and
-                                    fragments are allowed.
-                                </Typography.Paragraph>
-                                <Typography.Paragraph
-                                    style={{ marginBottom: 0 }}
-                                >
-                                    To redirect to our homepage use a single
-                                    slash as the target.
-                                </Typography.Paragraph>
-                            </>
-                        }
-                        type="info"
-                        showIcon
-                    />
-
-                    <Form
-                        form={form}
-                        layout="inline"
-                        onFinish={handleSubmit}
-                        style={{ gap: 16 }}
-                    >
-                        <Form.Item
-                            name="source"
-                            label="Source"
-                            rules={[
-                                {
-                                    required: true,
-                                    message: "Please provide a source.",
-                                },
-                                {
-                                    pattern: SOURCE_PATTERN,
-                                    message: INVALID_SOURCE_MESSAGE,
-                                },
-                                ({ getFieldValue }) => ({
-                                    validator(_, value) {
-                                        const target = getFieldValue("target")
-                                        if (value && value === target) {
-                                            return Promise.reject(
-                                                new Error(
-                                                    "Source and target cannot be the same."
-                                                )
-                                            )
-                                        }
-                                        if (value) {
-                                            const sourceUrl = new URL(
-                                                value,
-                                                "https://ourworldindata.org"
-                                            )
-                                            if (sourceUrl.pathname === "/") {
-                                                return Promise.reject(
-                                                    new Error(
-                                                        "Source cannot be the root."
-                                                    )
-                                                )
-                                            }
-                                        }
-                                        return Promise.resolve()
-                                    },
-                                }),
-                            ]}
-                            style={{ minWidth: 400 }}
-                        >
-                            <Input placeholder="/fertility-can-decline-extremely-fast" />
-                        </Form.Item>
-                        <Form.Item
-                            name="target"
-                            label="Target"
-                            rules={[
-                                {
-                                    required: true,
-                                    message: "Please provide a target.",
-                                },
-                                {
-                                    pattern: TARGET_PATTERN,
-                                    message: INVALID_TARGET_MESSAGE,
-                                },
-                                ({ getFieldValue }) => ({
-                                    validator(_, value) {
-                                        const source = getFieldValue("source")
-                                        if (value && value === source) {
-                                            return Promise.reject(
-                                                new Error(
-                                                    "Source and target cannot be the same."
-                                                )
-                                            )
-                                        }
-                                        return Promise.resolve()
-                                    },
-                                }),
-                            ]}
-                            style={{ minWidth: 400 }}
-                        >
-                            <Input placeholder="/fertility-rate" />
-                        </Form.Item>
-                        <Form.Item>
-                            <Button
-                                type="primary"
-                                htmlType="submit"
-                                loading={createMutation.isPending}
-                            >
-                                Create
-                            </Button>
-                        </Form.Item>
-                    </Form>
-
-                    <div>
-                        <Flex align="center" justify="space-between" gap={24}>
-                            <Input
-                                placeholder="Search by source or target"
-                                value={search}
-                                onChange={(e) => setSearch(e.target.value)}
-                                style={{ width: 400 }}
-                                autoFocus
-                            />
-                            <Typography.Text>
-                                Showing {filteredRedirects?.length ?? 0} of{" "}
-                                {redirects?.length ?? 0} redirects
-                            </Typography.Text>
-                        </Flex>
-                        <Table
-                            columns={columns}
-                            dataSource={filteredRedirects}
-                            rowKey="id"
-                            loading={!redirects}
-                            pagination={{ pageSize: 20 }}
-                            style={{ marginTop: 16 }}
+                    <div className="min-w-[400px] space-y-1.5">
+                        <Label htmlFor="source">Source</Label>
+                        <Input
+                            id="source"
+                            value={source}
+                            onChange={(e) => setSource(e.target.value)}
+                            placeholder="/fertility-can-decline-extremely-fast"
+                            aria-invalid={!!formErrors.source}
                         />
+                        {formErrors.source && (
+                            <p className="text-sm text-destructive">
+                                {formErrors.source}
+                            </p>
+                        )}
                     </div>
-                </Space>
+                    <div className="min-w-[400px] space-y-1.5">
+                        <Label htmlFor="target">Target</Label>
+                        <Input
+                            id="target"
+                            value={target}
+                            onChange={(e) => setTarget(e.target.value)}
+                            placeholder="/fertility-rate"
+                            aria-invalid={!!formErrors.target}
+                        />
+                        {formErrors.target && (
+                            <p className="text-sm text-destructive">
+                                {formErrors.target}
+                            </p>
+                        )}
+                    </div>
+                    <Button type="submit" disabled={createMutation.isPending}>
+                        {createMutation.isPending ? "Creating..." : "Create"}
+                    </Button>
+                </form>
+
+                {statusMessage && (
+                    <p
+                        className={
+                            statusMessage.type === "success"
+                                ? "text-sm text-green-600"
+                                : "text-sm text-destructive"
+                        }
+                    >
+                        {statusMessage.text}
+                    </p>
+                )}
+
+                <div className="space-y-4">
+                    <div className="flex items-center justify-between gap-6">
+                        <Input
+                            placeholder="Search by source or target"
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            className="w-[400px]"
+                            autoFocus
+                        />
+                        <span className="text-sm text-muted-foreground">
+                            Showing {totalFiltered} of {redirects?.length ?? 0}{" "}
+                            redirects
+                        </span>
+                    </div>
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Source</TableHead>
+                                <TableHead>Target</TableHead>
+                                <TableHead className="w-[100px]" />
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {paginatedRedirects?.map((redirect) => {
+                                const targetUrl = new URL(
+                                    redirect.target,
+                                    BAKED_BASE_URL
+                                )
+                                return (
+                                    <TableRow key={redirect.id}>
+                                        <TableCell className="break-all whitespace-normal">
+                                            {redirect.source}
+                                        </TableCell>
+                                        <TableCell className="break-all whitespace-normal">
+                                            <a
+                                                href={targetUrl.href}
+                                                target="_blank"
+                                                rel="noopener"
+                                            >
+                                                {redirect.target}
+                                            </a>
+                                        </TableCell>
+                                        <TableCell>
+                                            <Button
+                                                variant="destructive"
+                                                size="sm"
+                                                onClick={() =>
+                                                    handleDelete(redirect)
+                                                }
+                                            >
+                                                Delete
+                                            </Button>
+                                        </TableCell>
+                                    </TableRow>
+                                )
+                            })}
+                        </TableBody>
+                    </Table>
+                    {totalPages > 1 && (
+                        <div className="flex items-center justify-end gap-2">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setPage((p) => p - 1)}
+                                disabled={page === 0}
+                            >
+                                Previous
+                            </Button>
+                            <span className="text-sm text-muted-foreground">
+                                Page {page + 1} of {totalPages}
+                            </span>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setPage((p) => p + 1)}
+                                disabled={page >= totalPages - 1}
+                            >
+                                Next
+                            </Button>
+                        </div>
+                    )}
+                </div>
             </main>
         </AdminLayout>
     )
