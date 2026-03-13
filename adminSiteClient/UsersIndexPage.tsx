@@ -1,124 +1,139 @@
 import * as React from "react"
-import { observer } from "mobx-react"
-import { observable, action, runInAction, makeObservable } from "mobx"
+import { useContext, useEffect, useState } from "react"
+import { dayjs } from "@ourworldindata/utils"
 
-import { Modal, Timeago } from "./Forms.js"
-import { Link } from "./Link.js"
 import { AdminLayout } from "./AdminLayout.js"
-import { AdminAppContext, AdminAppContextType } from "./AdminAppContext.js"
+import { AdminAppContext } from "./AdminAppContext.js"
+import { Link } from "./Link.js"
 import { UserIndexMeta } from "./UserMeta.js"
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from "./components/ui/table.js"
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "./components/ui/dialog.js"
+import { Button } from "./components/ui/button.js"
+import { Input } from "./components/ui/input.js"
+import { Label } from "./components/ui/label.js"
+import { Badge } from "./components/ui/badge.js"
 
 interface UserIndexMetaWithLastSeen extends UserIndexMeta {
     lastSeen: Date
 }
 
-@observer
-class InviteModal extends React.Component<{ onClose: () => void }> {
-    static override contextType = AdminAppContext
-    declare context: AdminAppContextType
+function InviteDialog({
+    open,
+    onOpenChange,
+}: {
+    open: boolean
+    onOpenChange: (open: boolean) => void
+}) {
+    const { admin } = useContext(AdminAppContext)
+    const [email, setEmail] = useState("")
+    const [fullName, setFullName] = useState("")
+    const [responseSuccess, setResponseSuccess] = useState(false)
 
-    email: string = ""
-    fullName: string = ""
-    responseSuccess: boolean = false
-
-    constructor(props: { onClose: () => void }) {
-        super(props)
-
-        makeObservable(this, {
-            email: observable,
-            fullName: observable,
-            responseSuccess: observable,
-        })
+    function resetForm() {
+        setEmail("")
+        setFullName("")
+        setResponseSuccess(false)
     }
 
-    async submit() {
-        runInAction(() => (this.responseSuccess = false))
-        if (this.email) {
-            const resp = await this.context.admin.requestJSON(
+    async function handleSubmit(event: React.FormEvent) {
+        event.preventDefault()
+        setResponseSuccess(false)
+        if (email) {
+            const resp = await admin.requestJSON(
                 "/api/users/add",
-                { email: this.email, fullName: this.fullName },
+                { email, fullName },
                 "POST"
             )
-            console.log(resp)
             if (resp.success) {
-                runInAction(() => (this.responseSuccess = true))
+                setResponseSuccess(true)
             }
         }
     }
 
-    @action.bound onSubmit(event: React.FormEvent) {
-        event.preventDefault()
-        void this.submit()
+    function handleOpenChange(nextOpen: boolean) {
+        if (!nextOpen) {
+            resetForm()
+        }
+        onOpenChange(nextOpen)
     }
 
-    override render() {
-        return (
-            <Modal onClose={this.props.onClose}>
-                <form onSubmit={this.onSubmit}>
-                    <div className="modal-header">
-                        <h5 className="modal-title">Add a user</h5>
-                    </div>
-                    <div className="modal-body">
-                        <div className="form-group">
-                            <label>Full name</label>
-                            <input
+    return (
+        <Dialog open={open} onOpenChange={handleOpenChange}>
+            <DialogContent>
+                <form onSubmit={(e) => void handleSubmit(e)}>
+                    <DialogHeader>
+                        <DialogTitle>Add a user</DialogTitle>
+                        <DialogDescription>
+                            Invite a new user by entering their name and email.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                        <div className="grid gap-2">
+                            <Label htmlFor="fullName">Full name</Label>
+                            <Input
+                                id="fullName"
                                 type="text"
-                                className="form-control"
-                                onChange={(e) =>
-                                    (this.fullName = e.currentTarget.value)
-                                }
+                                value={fullName}
+                                onChange={(e) => setFullName(e.target.value)}
                                 required
                             />
                         </div>
-                        <div className="form-group">
-                            <label>Email</label>
-                            <input
+                        <div className="grid gap-2">
+                            <Label htmlFor="email">Email</Label>
+                            <Input
+                                id="email"
                                 type="email"
-                                className="form-control"
-                                onChange={(e) =>
-                                    (this.email = e.currentTarget.value)
-                                }
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
                                 required
                             />
                         </div>
                     </div>
-                    <div className="modal-footer">
-                        <input
-                            type="submit"
-                            className="btn btn-primary"
-                            value="Add user"
-                        />
-                    </div>
-                    {this.responseSuccess && (
-                        <div className="alert alert-success" role="alert">
+                    <DialogFooter>
+                        <Button type="submit">Add user</Button>
+                    </DialogFooter>
+                    {responseSuccess && (
+                        <p className="mt-3 text-sm text-green-600">
                             User added! They can now log in with their G Suite
                             account.
-                        </div>
+                        </p>
                     )}
                 </form>
-            </Modal>
-        )
-    }
+            </DialogContent>
+        </Dialog>
+    )
 }
 
-@observer
-export class UsersIndexPage extends React.Component {
-    static override contextType = AdminAppContext
-    declare context: AdminAppContextType
+export function UsersIndexPage() {
+    const { admin } = useContext(AdminAppContext)
+    const [users, setUsers] = useState<UserIndexMetaWithLastSeen[]>([])
+    const [isInviteOpen, setIsInviteOpen] = useState(false)
 
-    users: UserIndexMetaWithLastSeen[] = []
-    isInviteModal: boolean = false
+    useEffect(() => {
+        async function fetchUsers() {
+            const json = (await admin.getJSON("/api/users.json")) as {
+                users: UserIndexMetaWithLastSeen[]
+            }
+            setUsers(json.users)
+        }
+        void fetchUsers()
+    }, [admin])
 
-    constructor(props: Record<string, never>) {
-        super(props)
-
-        makeObservable(this, {
-            users: observable,
-            isInviteModal: observable,
-        })
-    }
-
-    @action.bound async onDelete(user: UserIndexMetaWithLastSeen) {
+    async function handleDelete(user: UserIndexMetaWithLastSeen) {
         if (
             !window.confirm(
                 `Delete the user ${user.fullName}? This action cannot be undone!`
@@ -126,111 +141,98 @@ export class UsersIndexPage extends React.Component {
         )
             return
 
-        const json = await this.context.admin.requestJSON(
+        const json = await admin.requestJSON(
             `/api/users/${user.id}`,
             {},
             "DELETE"
         )
 
         if (json.success) {
-            runInAction(() => this.users.splice(this.users.indexOf(user), 1))
+            setUsers((prev) => prev.filter((u) => u.id !== user.id))
         }
     }
 
-    override render() {
-        const { users } = this
-        const { isSuperuser } = this.context.admin
-        return (
-            <AdminLayout title="Users">
-                <main className="UsersIndexPage">
-                    {this.isInviteModal && (
-                        <InviteModal
-                            onClose={action(() => (this.isInviteModal = false))}
-                        />
+    const { isSuperuser } = admin
+
+    return (
+        <AdminLayout title="Users">
+            <main className="UsersIndexPage">
+                <InviteDialog
+                    open={isInviteOpen}
+                    onOpenChange={setIsInviteOpen}
+                />
+                <div className="topbar">
+                    <h2>Users</h2>
+                    {isSuperuser && (
+                        <Button onClick={() => setIsInviteOpen(true)}>
+                            Add a user
+                        </Button>
                     )}
-                    <div className="topbar">
-                        <h2>Users</h2>
-                        {isSuperuser && (
-                            <button
-                                onClick={action(
-                                    () => (this.isInviteModal = true)
-                                )}
-                                className="btn btn-primary"
-                            >
-                                Add a user
-                            </button>
-                        )}
-                    </div>
-                    <table className="table table-bordered">
-                        <tbody>
-                            <tr>
-                                <th>Name</th>
-                                <th>Last Seen</th>
-                                <th>Joined</th>
-                                {isSuperuser && <th>Status</th>}
-                                {isSuperuser && <th></th>}
-                                {isSuperuser && <th></th>}
-                            </tr>
-                            {users.map((user) => (
-                                <tr key={user.id}>
-                                    <td>{user.fullName}</td>
-                                    <td>
-                                        <Timeago time={user.lastSeen} />
-                                    </td>
-                                    <td>
-                                        <Timeago time={user.createdAt} />
-                                    </td>
-                                    {isSuperuser && (
-                                        <td>
+                </div>
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Name</TableHead>
+                            <TableHead>Last Seen</TableHead>
+                            <TableHead>Joined</TableHead>
+                            {isSuperuser && <TableHead>Status</TableHead>}
+                            {isSuperuser && <TableHead />}
+                            {isSuperuser && <TableHead />}
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {users.map((user) => (
+                            <TableRow key={user.id}>
+                                <TableCell>{user.fullName}</TableCell>
+                                <TableCell>
+                                    {user.lastSeen &&
+                                        dayjs(user.lastSeen).fromNow()}
+                                </TableCell>
+                                <TableCell>
+                                    {user.createdAt &&
+                                        dayjs(user.createdAt).fromNow()}
+                                </TableCell>
+                                {isSuperuser && (
+                                    <TableCell>
+                                        <Badge
+                                            variant={
+                                                user.isActive
+                                                    ? "default"
+                                                    : "secondary"
+                                            }
+                                        >
                                             {user.isActive
                                                 ? "active"
                                                 : "disabled"}
-                                        </td>
-                                    )}
-                                    {isSuperuser && (
-                                        <td>
-                                            <Link
-                                                to={`/users/${user.id}`}
-                                                className="btn btn-primary"
-                                            >
+                                        </Badge>
+                                    </TableCell>
+                                )}
+                                {isSuperuser && (
+                                    <TableCell>
+                                        <Button variant="outline" asChild>
+                                            <Link to={`/users/${user.id}`}>
                                                 Edit
                                             </Link>
-                                        </td>
-                                    )}
-                                    {isSuperuser && (
-                                        <td>
-                                            <button
-                                                className="btn btn-danger"
-                                                onClick={() =>
-                                                    this.onDelete(user)
-                                                }
-                                            >
-                                                Delete
-                                            </button>
-                                        </td>
-                                    )}
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </main>
-            </AdminLayout>
-        )
-    }
-
-    async getData() {
-        const { admin } = this.context
-
-        const json = (await admin.getJSON("/api/users.json")) as {
-            users: UserIndexMetaWithLastSeen[]
-        }
-
-        runInAction(() => {
-            this.users = json.users
-        })
-    }
-
-    override componentDidMount() {
-        void this.getData()
-    }
+                                        </Button>
+                                    </TableCell>
+                                )}
+                                {isSuperuser && (
+                                    <TableCell>
+                                        <Button
+                                            variant="destructive"
+                                            onClick={() =>
+                                                void handleDelete(user)
+                                            }
+                                        >
+                                            Delete
+                                        </Button>
+                                    </TableCell>
+                                )}
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+            </main>
+        </AdminLayout>
+    )
 }
