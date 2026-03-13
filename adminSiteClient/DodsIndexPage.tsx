@@ -4,10 +4,9 @@ import {
     useQuery,
     useQueryClient,
 } from "@tanstack/react-query"
-import { useContext, useEffect, useMemo, useState } from "react"
+import { useContext, useMemo, useState } from "react"
 import cx from "classnames"
 import { tippy } from "@tippyjs/react"
-import { Button, Flex, Form, Input, Modal, Popconfirm, Table } from "antd"
 import { AdminLayout } from "./AdminLayout.js"
 import { AdminAppContext } from "./AdminAppContext.js"
 import {
@@ -16,7 +15,6 @@ import {
     DodUsageRecord,
     DodUsageTypes,
 } from "@ourworldindata/types"
-import { ColumnsType } from "antd/es/table/InternalTable.js"
 import { EditableTextarea } from "./EditableTextarea.js"
 import * as R from "remeda"
 import { Admin } from "./Admin.js"
@@ -24,10 +22,39 @@ import { fromMarkdown } from "mdast-util-from-markdown"
 import { Content, PhrasingContent } from "mdast"
 import { renderToStaticMarkup } from "react-dom/server"
 import { MarkdownTextWrap } from "@ourworldindata/components"
-import TextArea from "antd/es/input/TextArea.js"
 import { match } from "ts-pattern"
 import { BAKED_BASE_URL } from "../settings/clientSettings.js"
 import { extractDetailsFromSyntax } from "@ourworldindata/utils"
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from "./components/ui/table.js"
+import { Button } from "./components/ui/button.js"
+import { Input } from "./components/ui/input.js"
+import { Label } from "./components/ui/label.js"
+import {
+    Dialog,
+    DialogContent,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "./components/ui/dialog.js"
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
+} from "./components/ui/alert-dialog.js"
+import { Textarea } from "./components/ui/textarea.js"
 
 type ValidPhrasingContent = Extract<
     PhrasingContent,
@@ -144,147 +171,6 @@ function DodEditor({
     )
 }
 
-function createColumns({
-    deleteDodMutation,
-    dods,
-    dodUsage,
-    patchDodMutation,
-    setActiveDodForUsageModal,
-    users,
-}: {
-    deleteDodMutation: DeleteDodMutationType
-    dods: Record<string, DbPlainDod> | undefined
-    dodUsage: Record<string, DodUsageRecord[]> | undefined
-    patchDodMutation: PatchDodMutationType
-    setActiveDodForUsageModal: (name: string) => void
-    users: Record<string, DbPlainUser> | undefined
-}): ColumnsType<DbPlainDod> {
-    return [
-        {
-            title: "Name",
-            dataIndex: "name",
-            key: "name",
-            width: 50,
-        },
-        {
-            title: "Last updated by",
-            dataIndex: "lastUpdatedUserId",
-            key: "lastUpdatedUserId",
-            width: 150,
-            render: (userId: number) => {
-                const user = users?.[userId]
-                return user ? user.fullName : "Unknown"
-            },
-        },
-        {
-            title: "Last updated",
-            dataIndex: "updatedAt",
-            key: "updatedAt",
-            width: 200,
-            defaultSortOrder: "descend",
-            sorter: (a, b) =>
-                new Date(a.updatedAt).getTime() -
-                new Date(b.updatedAt).getTime(),
-            render: (updatedAt: string) => {
-                const date = new Date(updatedAt)
-                return `${date.toLocaleTimeString()} ${date.toLocaleDateString()}`
-            },
-        },
-        {
-            title: "Content",
-            dataIndex: "content",
-            key: "content",
-            render: (content: string, dod: DbPlainDod) => {
-                return (
-                    <div className="dod-content" data-dod-id={dod.id}>
-                        <DodEditor
-                            text={content}
-                            id={dod.id}
-                            patchDodMutation={patchDodMutation}
-                            dods={dods}
-                        />
-                    </div>
-                )
-            },
-        },
-        {
-            title: "Actions",
-            dataIndex: "content",
-            width: 220,
-            sorter: (a, b) => {
-                if (!dodUsage) return 0
-                const aUsage = dodUsage?.[a.name]?.length || 0
-                const bUsage = dodUsage?.[b.name]?.length || 0
-                return aUsage - bUsage
-            },
-            key: "actions",
-            render: (_, dod) => {
-                if (!dodUsage) {
-                    return (
-                        <div className="DodEditor__actions-spinner">
-                            <Button disabled loading />
-                            <Button disabled loading />
-                            <Button disabled loading />
-                        </div>
-                    )
-                }
-                const usage = dodUsage?.[dod.name] || []
-
-                return (
-                    <div className="DodEditor__actions">
-                        <Button
-                            variant="filled"
-                            color="blue"
-                            onMouseEnter={(event) => {
-                                const textarea = document.querySelector(
-                                    `.dod-content[data-dod-id="${dod.id}"] textarea`
-                                )
-                                if (!textarea) return
-
-                                const text = textarea.textContent
-                                const target = event.currentTarget as any
-
-                                if (text && !target._tippy) {
-                                    showDodPreviewTooltip(text, target)
-                                }
-                            }}
-                        >
-                            Preview
-                        </Button>
-                        <Button
-                            onClick={() => setActiveDodForUsageModal(dod.name)}
-                        >
-                            Usage
-                            <span>{usage.length || 0}</span>
-                        </Button>
-                        <Popconfirm
-                            title="Are you sure?"
-                            description="This action cannot be undone."
-                            onConfirm={() =>
-                                deleteDodMutation.mutate({
-                                    id: dod.id,
-                                })
-                            }
-                            okText="Yes"
-                            cancelText="No"
-                        >
-                            <Button
-                                color="danger"
-                                variant="filled"
-                                disabled={!!usage.length}
-                            >
-                                {usage.length
-                                    ? "Cannot delete while in use"
-                                    : "Delete"}
-                            </Button>
-                        </Popconfirm>
-                    </div>
-                )
-            },
-        },
-    ]
-}
-
 function showDodPreviewTooltip(text: string, element: Element): void {
     const content = renderToStaticMarkup(
         <div className="dod-container">
@@ -364,92 +250,107 @@ async function createDod(
     return response
 }
 
-function CreateDodModal({
+function CreateDodDialog({
     createDodMutation,
-    isOpen,
-    onClose,
+    open,
+    onOpenChange,
     dods,
 }: {
     createDodMutation: CreateDodMutationType
-    isOpen: boolean
-    onClose: () => void
+    open: boolean
+    onOpenChange: (open: boolean) => void
     dods: Record<string, DbPlainDod> | undefined
 }) {
-    const [form] = Form.useForm()
-    const [isFilled, setIsFilled] = useState(false)
-    const [isContentValid, setIsContentValid] = useState(true)
+    const [name, setName] = useState("")
+    const [content, setContent] = useState("")
+    const [nameError, setNameError] = useState<string | null>(null)
 
-    const values = Form.useWatch([], form)
+    const isContentValid = validateDodContent(content, dods)
+    const isFilled = name.trim().length > 0 && content.trim().length > 0
 
-    useEffect(() => {
-        form.validateFields()
-            .then(() => setIsFilled(true))
-            .catch(() => setIsFilled(false))
-    }, [form, values])
+    function validateName(value: string): string | null {
+        if (!value.trim()) return "Name is required"
+        if (/\s/.test(value)) return "No spaces allowed"
+        if (dods && dods[value]) return "Dod already exists"
+        return null
+    }
 
-    useEffect(() => {
-        setIsContentValid(validateDodContent(values?.content, dods))
-    }, [dods, values])
+    function resetForm() {
+        setName("")
+        setContent("")
+        setNameError(null)
+    }
+
+    function handleOpenChange(nextOpen: boolean) {
+        if (!nextOpen) {
+            resetForm()
+        }
+        onOpenChange(nextOpen)
+    }
+
+    function handleSubmit(e: React.FormEvent) {
+        e.preventDefault()
+        const error = validateName(name)
+        if (error) {
+            setNameError(error)
+            return
+        }
+        createDodMutation.mutate({ content, name })
+        resetForm()
+        onOpenChange(false)
+    }
 
     return (
-        <Modal
-            title="Create Detail on Demand"
-            open={isOpen}
-            onCancel={onClose}
-            footer={null}
-        >
-            <Form
-                form={form}
-                layout="vertical"
-                onFinish={(values) => {
-                    createDodMutation.mutate(values)
-                    form.resetFields()
-                    onClose()
-                }}
-            >
-                <Form.Item
-                    label="Name"
-                    name="name"
-                    rules={[
-                        { required: true },
-                        { pattern: /^[^\s]+$/, message: "No spaces allowed" },
-                        {
-                            validator: (_, value) => {
-                                if (dods && dods[value]) {
-                                    return Promise.reject(
-                                        new Error("Dod already exists")
-                                    )
-                                }
-                                return Promise.resolve()
-                            },
-                        },
-                    ]}
-                >
-                    <Input autoComplete="off" />
-                </Form.Item>
-                <Form.Item
-                    label="Content"
-                    name="content"
-                    rules={[{ required: true }]}
-                >
-                    <TextArea rows={8} />
-                </Form.Item>
-                <Form.Item>
-                    <Button
-                        type="primary"
-                        htmlType="submit"
-                        disabled={!isFilled || !isContentValid}
-                    >
-                        Submit
-                    </Button>
-                </Form.Item>
-            </Form>
-            {!isContentValid && <InvalidDodMessage />}
-        </Modal>
+        <Dialog open={open} onOpenChange={handleOpenChange}>
+            <DialogContent>
+                <form onSubmit={handleSubmit}>
+                    <DialogHeader>
+                        <DialogTitle>Create Detail on Demand</DialogTitle>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                        <div className="grid gap-2">
+                            <Label htmlFor="dod-name">Name</Label>
+                            <Input
+                                id="dod-name"
+                                autoComplete="off"
+                                value={name}
+                                onChange={(e) => {
+                                    setName(e.target.value)
+                                    setNameError(validateName(e.target.value))
+                                }}
+                            />
+                            {nameError && (
+                                <p className="text-sm text-destructive">
+                                    {nameError}
+                                </p>
+                            )}
+                        </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="dod-content">Content</Label>
+                            <Textarea
+                                id="dod-content"
+                                rows={8}
+                                value={content}
+                                onChange={(e) => setContent(e.target.value)}
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button
+                            type="submit"
+                            disabled={!isFilled || !isContentValid}
+                        >
+                            Submit
+                        </Button>
+                    </DialogFooter>
+                    {!isContentValid && <InvalidDodMessage />}
+                </form>
+            </DialogContent>
+        </Dialog>
     )
 }
 
-function DodUsageModal({
+function DodUsageDialog({
     dodUsage,
     activeDodForUsageModal,
     setActiveDodForUsageModal,
@@ -458,97 +359,154 @@ function DodUsageModal({
     activeDodForUsageModal: string | null
     setActiveDodForUsageModal: (name: string | null) => void
 }) {
+    const [typeFilter, setTypeFilter] = useState<string | null>(null)
+
     if (!dodUsage || !activeDodForUsageModal) return null
     const activeDodUsage = dodUsage[activeDodForUsageModal]
     if (!activeDodUsage) return null
 
-    const presentUsageTypes = new Set(
-        activeDodUsage.map((dodUsageRecord) => dodUsageRecord.type)
-    )
+    const presentUsageTypes = Array.from(
+        new Set(activeDodUsage.map((r) => r.type))
+    ).filter((t) => DodUsageTypes.includes(t))
 
-    const filtersToDisplay = DodUsageTypes.filter((dodUsageType) =>
-        presentUsageTypes.has(dodUsageType)
-    ).map((dodUsageType) => ({
-        text: dodUsageType,
-        value: dodUsageType,
-    }))
+    const filteredUsage = typeFilter
+        ? activeDodUsage.filter((r) => r.type === typeFilter)
+        : activeDodUsage
+
+    function makeUrlForUsageRecord(
+        dodUsageRecord: DodUsageRecord
+    ): string | undefined {
+        return match(dodUsageRecord.type)
+            .with("explorer", () => {
+                return `/admin/explorers/${dodUsageRecord.id}`
+            })
+            .with("gdoc", () => {
+                return `/admin/gdocs/${dodUsageRecord.id}/preview`
+            })
+            .with("grapher", () => {
+                return `${BAKED_BASE_URL}/grapher/${dodUsageRecord.id}`
+            })
+            .with("indicator", () => {
+                return `/admin/variables/${dodUsageRecord.id}`
+            })
+            .with("dod", () => {
+                return undefined
+            })
+            .exhaustive()
+    }
 
     return (
-        <Modal
-            width="80vw"
-            title={`Usage of ${activeDodForUsageModal}`}
+        <Dialog
             open={!!activeDodForUsageModal}
-            onCancel={() => setActiveDodForUsageModal(null)}
-            footer={null}
+            onOpenChange={(open) => {
+                if (!open) {
+                    setActiveDodForUsageModal(null)
+                    setTypeFilter(null)
+                }
+            }}
         >
-            <Table
-                dataSource={activeDodUsage}
-                columns={[
-                    {
-                        title: "Resource",
-                        dataIndex: "title",
-                        key: "title",
-                        render: (_, dodUsageRecord: DodUsageRecord) => {
-                            function makeUrlForUsageRecord(
-                                dodUsageRecord: DodUsageRecord
-                            ): string | undefined {
-                                return match(dodUsageRecord.type)
-                                    .with("explorer", () => {
-                                        return `/admin/explorers/${dodUsageRecord.id}`
-                                    })
-                                    .with("gdoc", () => {
-                                        return `/admin/gdocs/${dodUsageRecord.id}/preview`
-                                    })
-                                    .with("grapher", () => {
-                                        return `${BAKED_BASE_URL}/grapher/${dodUsageRecord.id}`
-                                    })
-                                    .with("indicator", () => {
-                                        return `/admin/variables/${dodUsageRecord.id}`
-                                    })
-                                    .with("dod", () => {
-                                        return undefined
-                                    })
-                                    .exhaustive()
+            <DialogContent className="sm:max-w-[80vw]">
+                <DialogHeader>
+                    <DialogTitle>Usage of {activeDodForUsageModal}</DialogTitle>
+                </DialogHeader>
+                {presentUsageTypes.length > 1 && (
+                    <div className="flex gap-2">
+                        <Button
+                            variant={
+                                typeFilter === null ? "default" : "outline"
                             }
-                            const url = makeUrlForUsageRecord(dodUsageRecord)
-                            if (!url) {
-                                return <span>{dodUsageRecord.title}</span>
-                            }
+                            size="sm"
+                            onClick={() => setTypeFilter(null)}
+                        >
+                            All
+                        </Button>
+                        {presentUsageTypes.map((type) => (
+                            <Button
+                                key={type}
+                                variant={
+                                    typeFilter === type ? "default" : "outline"
+                                }
+                                size="sm"
+                                onClick={() => setTypeFilter(type)}
+                            >
+                                {type}
+                            </Button>
+                        ))}
+                    </div>
+                )}
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Resource</TableHead>
+                            <TableHead className="w-[200px]">Type</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {filteredUsage.map((record, idx) => {
+                            const url = makeUrlForUsageRecord(record)
                             return (
-                                <a
-                                    href={url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                >
-                                    {dodUsageRecord.title}
-                                </a>
+                                <TableRow key={idx}>
+                                    <TableCell>
+                                        {url ? (
+                                            <a
+                                                href={url}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                            >
+                                                {record.title}
+                                            </a>
+                                        ) : (
+                                            <span>{record.title}</span>
+                                        )}
+                                    </TableCell>
+                                    <TableCell>{record.type}</TableCell>
+                                </TableRow>
                             )
-                        },
-                    },
-                    {
-                        title: "Type",
-                        dataIndex: "type",
-                        key: "type",
-                        width: 200,
-                        filterOnClose: true,
-                        filters: filtersToDisplay,
-                        onFilter: (value, record) => {
-                            return record.type === value
-                        },
-                    },
-                ]}
-            />
-        </Modal>
+                        })}
+                    </TableBody>
+                </Table>
+            </DialogContent>
+        </Dialog>
+    )
+}
+
+type SortField = "name" | "updatedAt" | "usageCount"
+type SortDirection = "asc" | "desc"
+
+function SortableHeader({
+    label,
+    field,
+    currentSort,
+    currentDirection,
+    onSort,
+}: {
+    label: string
+    field: SortField
+    currentSort: SortField
+    currentDirection: SortDirection
+    onSort: (field: SortField) => void
+}) {
+    const isActive = currentSort === field
+    return (
+        <TableHead
+            className="cursor-pointer select-none"
+            onClick={() => onSort(field)}
+        >
+            {label}{" "}
+            {isActive ? (currentDirection === "asc" ? "\u2191" : "\u2193") : ""}
+        </TableHead>
     )
 }
 
 export function DodsIndexPage() {
     const { admin } = useContext(AdminAppContext)
     const [dodSearchValue, setDodSearchValue] = useState("")
-    const [isCreateDodModalOpen, setIsCreateDodModalOpen] = useState(false)
+    const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
     const [activeDodForUsageModal, setActiveDodForUsageModal] = useState<
         string | null
     >(null)
+    const [sortField, setSortField] = useState<SortField>("updatedAt")
+    const [sortDirection, setSortDirection] = useState<SortDirection>("desc")
     const queryClient = useQueryClient()
 
     const { data: dods } = useQuery({
@@ -589,83 +547,239 @@ export function DodsIndexPage() {
         },
     })
 
-    const filteredDods = useMemo(
-        () =>
-            dods
-                ? Object.values(dods).filter(
-                      (dod) =>
-                          users?.[dod.lastUpdatedUserId]?.fullName
-                              .toLowerCase()
-                              .includes(dodSearchValue.toLowerCase()) ||
-                          dod.name
-                              .toLowerCase()
-                              .includes(dodSearchValue.toLowerCase()) ||
-                          dod.content
-                              .toLowerCase()
-                              .includes(dodSearchValue.toLowerCase())
-                  )
-                : [],
-        [dods, dodSearchValue, users]
-    )
+    function handleSort(field: SortField) {
+        if (sortField === field) {
+            setSortDirection((d) => (d === "asc" ? "desc" : "asc"))
+        } else {
+            setSortField(field)
+            setSortDirection(field === "updatedAt" ? "desc" : "asc")
+        }
+    }
 
-    const columns = useMemo(
-        () =>
-            createColumns({
-                deleteDodMutation,
-                dods,
-                dodUsage,
-                patchDodMutation,
-                setActiveDodForUsageModal,
-                users,
-            }),
-        [
-            deleteDodMutation,
-            dods,
-            dodUsage,
-            patchDodMutation,
-            setActiveDodForUsageModal,
-            users,
-        ]
-    )
+    const filteredAndSortedDods = useMemo(() => {
+        if (!dods) return []
+        const filtered = Object.values(dods).filter(
+            (dod) =>
+                users?.[dod.lastUpdatedUserId]?.fullName
+                    .toLowerCase()
+                    .includes(dodSearchValue.toLowerCase()) ||
+                dod.name.toLowerCase().includes(dodSearchValue.toLowerCase()) ||
+                dod.content.toLowerCase().includes(dodSearchValue.toLowerCase())
+        )
+
+        const sorted = [...filtered].sort((a, b) => {
+            let cmp = 0
+            if (sortField === "name") {
+                cmp = a.name.localeCompare(b.name)
+            } else if (sortField === "updatedAt") {
+                cmp =
+                    new Date(a.updatedAt).getTime() -
+                    new Date(b.updatedAt).getTime()
+            } else if (sortField === "usageCount") {
+                const aUsage = dodUsage?.[a.name]?.length ?? 0
+                const bUsage = dodUsage?.[b.name]?.length ?? 0
+                cmp = aUsage - bUsage
+            }
+            return sortDirection === "asc" ? cmp : -cmp
+        })
+
+        return sorted
+    }, [dods, dodSearchValue, users, sortField, sortDirection, dodUsage])
 
     return (
         <AdminLayout title="DoDs">
             <main className="DodsIndexPage">
-                <Flex justify="space-between">
+                <div className="flex items-center justify-between mb-4">
                     <Input
                         placeholder="Search by content, id, or most recent user"
                         value={dodSearchValue}
                         onChange={(e) => setDodSearchValue(e.target.value)}
-                        style={{ width: 500, marginBottom: 20 }}
+                        className="max-w-[500px]"
                     />
-                    <Button
-                        variant="solid"
-                        color="blue"
-                        style={{ padding: "0 35px" }}
-                        onClick={() => setIsCreateDodModalOpen(true)}
-                    >
+                    <Button onClick={() => setIsCreateDialogOpen(true)}>
                         Create
                     </Button>
-                </Flex>
-                <Table
-                    className="DodEditor__table"
-                    size="small"
-                    columns={columns}
-                    dataSource={filteredDods}
-                    rowKey={(x) => x.id}
-                />
-                <CreateDodModal
+                </div>
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <SortableHeader
+                                label="Name"
+                                field="name"
+                                currentSort={sortField}
+                                currentDirection={sortDirection}
+                                onSort={handleSort}
+                            />
+                            <TableHead className="w-[150px]">
+                                Last updated by
+                            </TableHead>
+                            <SortableHeader
+                                label="Last updated"
+                                field="updatedAt"
+                                currentSort={sortField}
+                                currentDirection={sortDirection}
+                                onSort={handleSort}
+                            />
+                            <TableHead>Content</TableHead>
+                            <SortableHeader
+                                label="Actions"
+                                field="usageCount"
+                                currentSort={sortField}
+                                currentDirection={sortDirection}
+                                onSort={handleSort}
+                            />
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {filteredAndSortedDods.map((dod) => {
+                            const user = users?.[dod.lastUpdatedUserId]
+                            const date = new Date(dod.updatedAt)
+
+                            return (
+                                <TableRow key={dod.id} className="align-top">
+                                    <TableCell className="align-top whitespace-normal">
+                                        {dod.name}
+                                    </TableCell>
+                                    <TableCell className="align-top">
+                                        {user ? user.fullName : "Unknown"}
+                                    </TableCell>
+                                    <TableCell className="align-top">
+                                        {`${date.toLocaleTimeString()} ${date.toLocaleDateString()}`}
+                                    </TableCell>
+                                    <TableCell className="align-top whitespace-normal">
+                                        <div
+                                            className="dod-content"
+                                            data-dod-id={dod.id}
+                                        >
+                                            <DodEditor
+                                                text={dod.content}
+                                                id={dod.id}
+                                                patchDodMutation={
+                                                    patchDodMutation
+                                                }
+                                                dods={dods}
+                                            />
+                                        </div>
+                                    </TableCell>
+                                    <TableCell className="align-top">
+                                        <DodActions
+                                            dod={dod}
+                                            dodUsage={dodUsage}
+                                            deleteDodMutation={
+                                                deleteDodMutation
+                                            }
+                                            setActiveDodForUsageModal={
+                                                setActiveDodForUsageModal
+                                            }
+                                        />
+                                    </TableCell>
+                                </TableRow>
+                            )
+                        })}
+                    </TableBody>
+                </Table>
+                <CreateDodDialog
                     createDodMutation={createDodMutation}
-                    isOpen={isCreateDodModalOpen}
-                    onClose={() => setIsCreateDodModalOpen(false)}
+                    open={isCreateDialogOpen}
+                    onOpenChange={setIsCreateDialogOpen}
                     dods={dods}
                 />
-                <DodUsageModal
+                <DodUsageDialog
                     dodUsage={dodUsage}
                     activeDodForUsageModal={activeDodForUsageModal}
                     setActiveDodForUsageModal={setActiveDodForUsageModal}
                 />
             </main>
         </AdminLayout>
+    )
+}
+
+function DodActions({
+    dod,
+    dodUsage,
+    deleteDodMutation,
+    setActiveDodForUsageModal,
+}: {
+    dod: DbPlainDod
+    dodUsage: Record<string, DodUsageRecord[]> | undefined
+    deleteDodMutation: DeleteDodMutationType
+    setActiveDodForUsageModal: (name: string) => void
+}) {
+    if (!dodUsage) {
+        return (
+            <div className="DodEditor__actions-spinner">
+                <Button disabled size="sm">
+                    Loading...
+                </Button>
+            </div>
+        )
+    }
+
+    const usage = dodUsage[dod.name] ?? []
+
+    return (
+        <div className="DodEditor__actions">
+            <Button
+                variant="outline"
+                size="sm"
+                onMouseEnter={(event) => {
+                    const textarea = document.querySelector(
+                        `.dod-content[data-dod-id="${dod.id}"] textarea`
+                    )
+                    if (!textarea) return
+
+                    const text = textarea.textContent
+                    const target = event.currentTarget as HTMLButtonElement & {
+                        _tippy?: unknown
+                    }
+
+                    if (text && !target._tippy) {
+                        showDodPreviewTooltip(text, target)
+                    }
+                }}
+            >
+                Preview
+            </Button>
+            <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setActiveDodForUsageModal(dod.name)}
+            >
+                Usage ({usage.length})
+            </Button>
+            {usage.length === 0 ? (
+                <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                        <Button variant="destructive" size="sm">
+                            Delete
+                        </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                This action cannot be undone.
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                                onClick={() =>
+                                    deleteDodMutation.mutate({
+                                        id: dod.id,
+                                    })
+                                }
+                            >
+                                Delete
+                            </AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
+            ) : (
+                <Button variant="destructive" size="sm" disabled>
+                    Cannot delete while in use
+                </Button>
+            )}
+        </div>
     )
 }
