@@ -256,11 +256,7 @@ export class AdminApp extends React.Component<{
                                 <Route
                                     exact
                                     path={`/${EXPLORERS_ROUTE_FOLDER}`}
-                                    render={() => (
-                                        <AdminLayout title="Explorers">
-                                            <ExplorersIndexPage />
-                                        </AdminLayout>
-                                    )}
+                                    component={ExplorersIndexPage}
                                 />
                                 <Route
                                     exact

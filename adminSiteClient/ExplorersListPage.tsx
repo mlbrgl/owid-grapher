@@ -1,20 +1,8 @@
-import * as _ from "lodash-es"
-import { LoadingIndicator } from "@ourworldindata/components"
+import { useContext, useEffect, useMemo, useState } from "react"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { dayjs, SerializedGridProgram } from "@ourworldindata/utils"
 import {
-    action,
-    computed,
-    IReactionDisposer,
-    observable,
-    reaction,
-    runInAction,
-    makeObservable,
-} from "mobx"
-import { observer } from "mobx-react"
-import { Component } from "react"
-import {
     DefaultNewExplorerSlug,
-    ExplorersRouteResponse,
     EXPLORERS_PREVIEW_ROUTE,
     EXPLORERS_ROUTE_FOLDER,
     GetAllExplorersRoute,
@@ -22,319 +10,294 @@ import {
     ExplorerProgram,
 } from "@ourworldindata/explorer"
 import { BAKED_BASE_URL } from "../settings/clientSettings.js"
-import { AdminManager } from "./AdminManager.js"
-import { AdminAppContext, AdminAppContextType } from "./AdminAppContext.js"
+import { AdminAppContext } from "./AdminAppContext.js"
+import { Admin } from "./Admin.js"
+import { AdminLayout } from "./AdminLayout.js"
+import { Input } from "./components/ui/input.js"
+import { Button } from "./components/ui/button.js"
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from "./components/ui/table.js"
 
-interface ExplorerRowProps {
+async function fetchExplorers(admin: Admin): Promise<ExplorerProgram[]> {
+    const response = await admin.getJSON<{
+        success: boolean
+        errorMessage?: string
+        explorers: SerializedGridProgram[]
+    }>(GetAllExplorersRoute)
+    return response.explorers.map((exp) => ExplorerProgram.fromJson(exp))
+}
+
+async function togglePublished(
+    admin: Admin,
     explorer: ExplorerProgram
-    indexPage: ExplorersIndexPage
-    searchHighlight?: (text: string) => any
-}
-
-@observer
-class ExplorerRow extends Component<ExplorerRowProps> {
-    override render() {
-        const { explorer, searchHighlight, indexPage } = this.props
-        const {
-            slug,
-            lastCommit,
-            googleSheet,
-            isPublished,
-            explorerTitle,
-            title,
-            grapherCount,
-            tableCount,
-        } = explorer
-
-        const publishedUrl = `${BAKED_BASE_URL}/${EXPLORERS_ROUTE_FOLDER}/${slug}`
-
-        const titleToShow = explorerTitle ?? title ?? ""
-
-        const googleSheetButton = googleSheet ? (
-            <>
-                <span> | </span>
-                <a key="googleSheets" href={googleSheet}>
-                    Google Sheet
-                </a>
-            </>
-        ) : null
-
-        const hasEdits = localStorage.getItem(
-            `${UNSAVED_EXPLORER_DRAFT}${slug}`
-        )
-
-        return (
-            <tr>
-                <td>
-                    {!isPublished ? (
-                        <span className="text-secondary">{slug}</span>
-                    ) : (
-                        <a href={publishedUrl}>{slug}</a>
-                    )}
-                    {" - "}
-                    <a href={`/admin/${EXPLORERS_PREVIEW_ROUTE}/${slug}`}>
-                        Preview
-                    </a>
-                </td>
-                <td>
-                    {searchHighlight
-                        ? searchHighlight(titleToShow)
-                        : titleToShow}
-                    <div style={{ fontSize: "80%", opacity: 0.8 }}>
-                        {`${grapherCount} grapher${
-                            grapherCount > 1 ? "s" : ""
-                        }. ${tableCount} table${tableCount === 1 ? "" : "s"}.`}
-                    </div>
-                </td>
-                <td>
-                    <div>{lastCommit?.message}</div>
-                    <div style={{ fontSize: "80%", opacity: 0.8 }}>
-                        <a>
-                            {lastCommit ? dayjs(lastCommit.date).fromNow() : ""}
-                        </a>{" "}
-                        by {lastCommit?.author_name}
-                        {googleSheetButton}
-                    </div>
-                </td>
-
-                <td>
-                    <a
-                        href={`${EXPLORERS_ROUTE_FOLDER}/${slug}`}
-                        className="btn btn-primary"
-                        title={hasEdits ? "*You have local edits" : ""}
-                    >
-                        Edit{hasEdits ? "*" : ""}
-                    </a>
-                </td>
-                <td>
-                    <button
-                        className="btn btn-danger"
-                        onClick={() => indexPage.togglePublishedStatus(slug)}
-                    >
-                        {isPublished ? "Unpublish" : "Publish"}
-                    </button>
-                </td>
-                <td>
-                    <button
-                        className="btn btn-danger"
-                        onClick={() => indexPage.deleteExplorer(slug)}
-                    >
-                        Delete{" "}
-                    </button>
-                </td>
-            </tr>
-        )
+): Promise<void> {
+    const newVersion = explorer.setPublished(!explorer.isPublished)
+    const commitMessage = `Setting publish status of ${explorer.slug} to ${newVersion.isPublished}`
+    const res = await admin.requestJSON<{ success: boolean; error?: string }>(
+        `/api/explorers/${explorer.slug}`,
+        {
+            tsv: newVersion.toString(),
+            commitMessage,
+        },
+        "PUT"
+    )
+    if (!res.success) {
+        throw new Error(res.error ?? "Failed to update explorer")
     }
 }
 
-interface ExplorerListProps {
-    explorers: ExplorerProgram[]
-    searchHighlight?: (text: string) => any
-    indexPage: ExplorersIndexPage
+async function deleteExplorer(admin: Admin, slug: string): Promise<void> {
+    await admin.requestJSON(`/api/explorers/${slug}`, {}, "DELETE")
 }
 
-@observer
-class ExplorerList extends Component<ExplorerListProps> {
-    override render() {
-        const { props } = this
-        return (
-            <table className="table table-bordered">
-                <thead>
-                    <tr>
-                        <th>Slug</th>
-                        <th>Title</th>
-                        <th>Last Updated</th>
-                        <th></th>
-                        <th></th>
-                        <th></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {props.explorers.map((explorer) => (
-                        <ExplorerRow
-                            indexPage={this.props.indexPage}
-                            key={explorer.slug}
-                            explorer={explorer}
-                            searchHighlight={props.searchHighlight}
-                        />
-                    ))}
-                </tbody>
-            </table>
-        )
-    }
+function highlightMatch(text: string, search: string): React.ReactNode {
+    if (!search) return text
+    const escaped = search.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&")
+    const html = text.replace(new RegExp(escaped, "i"), (s) => `<b>${s}</b>`)
+    return <span dangerouslySetInnerHTML={{ __html: html }} />
 }
 
-@observer
-export class ExplorersIndexPage extends Component<{
-    manager?: AdminManager
-}> {
-    static override contextType = AdminAppContext
-    declare context: AdminAppContextType
+export function ExplorersIndexPage() {
+    const { admin } = useContext(AdminAppContext)
+    const queryClient = useQueryClient()
+    const [searchInput, setSearchInput] = useState("")
+    const [maxVisibleRows, setMaxVisibleRows] = useState(50)
 
-    explorers: ExplorerProgram[] = []
-    maxVisibleRows = 50
-    numTotalRows: number | undefined = undefined
-    searchInput: string | undefined = undefined
-    highlightSearch: string | undefined = undefined
-
-    constructor(props: { manager?: AdminManager }) {
-        super(props)
-
-        makeObservable(this, {
-            explorers: observable,
-            maxVisibleRows: observable,
-            numTotalRows: observable,
-            searchInput: observable,
-            highlightSearch: observable,
-            isReady: observable,
-        })
-    }
-
-    @computed get explorersToShow(): ExplorerProgram[] {
-        return _.orderBy(
-            this.explorers,
-            (program) => dayjs(program.lastCommit?.date).unix(),
-            ["desc"]
-        )
-    }
-
-    @action.bound onShowMore() {
-        this.maxVisibleRows += 100
-    }
-
-    override render() {
-        if (!this.isReady)
-            return <LoadingIndicator title="Loading explorer list" />
-
-        const { explorersToShow, numTotalRows } = this
-
-        const highlight = (text: string) => {
-            if (this.highlightSearch) {
-                const html = text.replace(
-                    new RegExp(
-                        this.highlightSearch.replace(
-                            /[-/\\^$*+?.()|[\]{}]/g,
-                            "\\$&"
-                        ),
-                        "i"
-                    ),
-                    (s) => `<b>${s}</b>`
-                )
-                return <span dangerouslySetInnerHTML={{ __html: html }} />
-            } else return text
+    useEffect(() => {
+        admin.loadingIndicatorSetting = "off"
+        return () => {
+            admin.loadingIndicatorSetting = "default"
         }
+    }, [admin])
 
-        return (
-            <main className="DatasetsIndexPage">
-                <div className="ExplorersListPageHeader">
-                    <div>
-                        Showing {explorersToShow.length} of {numTotalRows}{" "}
-                        explorers
+    const { data: explorers } = useQuery({
+        queryKey: ["explorers"],
+        queryFn: () => fetchExplorers(admin),
+    })
+
+    const publishMutation = useMutation({
+        mutationFn: (explorer: ExplorerProgram) =>
+            togglePublished(admin, explorer),
+        onSuccess: () =>
+            queryClient.invalidateQueries({ queryKey: ["explorers"] }),
+    })
+
+    const deleteMutation = useMutation({
+        mutationFn: (slug: string) => deleteExplorer(admin, slug),
+        onSuccess: () =>
+            queryClient.invalidateQueries({ queryKey: ["explorers"] }),
+    })
+
+    const filteredExplorers = useMemo(() => {
+        if (!explorers) return []
+        let filtered = explorers
+        if (searchInput) {
+            const lower = searchInput.toLowerCase()
+            filtered = explorers.filter((exp) => {
+                const title = exp.explorerTitle ?? exp.title ?? ""
+                return (
+                    exp.slug.toLowerCase().includes(lower) ||
+                    title.toLowerCase().includes(lower)
+                )
+            })
+        }
+        return filtered.sort((a, b) => {
+            const dateA = a.lastCommit?.date
+                ? dayjs(a.lastCommit.date).unix()
+                : 0
+            const dateB = b.lastCommit?.date
+                ? dayjs(b.lastCommit.date).unix()
+                : 0
+            return dateB - dateA
+        })
+    }, [explorers, searchInput])
+
+    const visibleExplorers = filteredExplorers.slice(0, maxVisibleRows)
+
+    function handleDelete(slug: string) {
+        if (!window.confirm(`Are you sure you want to delete "${slug}"?`))
+            return
+        deleteMutation.mutate(slug)
+    }
+
+    return (
+        <AdminLayout title="Explorers">
+            <main>
+                <div className="mb-4 flex items-center justify-between">
+                    <div className="text-sm text-muted-foreground">
+                        Showing {visibleExplorers.length} of{" "}
+                        {filteredExplorers.length} explorers
                     </div>
-                    <div style={{ textAlign: "right" }}>
-                        <a
-                            className="btn btn-primary"
-                            href={`/admin/${EXPLORERS_ROUTE_FOLDER}/${DefaultNewExplorerSlug}`}
-                        >
-                            Create
-                        </a>
+                    <div className="flex items-center gap-2">
+                        <Input
+                            type="search"
+                            placeholder="Search explorers..."
+                            value={searchInput}
+                            onChange={(e) => {
+                                setSearchInput(e.target.value)
+                                setMaxVisibleRows(50)
+                            }}
+                            className="w-64"
+                        />
+                        <Button asChild>
+                            <a
+                                href={`/admin/${EXPLORERS_ROUTE_FOLDER}/${DefaultNewExplorerSlug}`}
+                            >
+                                Create
+                            </a>
+                        </Button>
                     </div>
                 </div>
-                <ExplorerList
-                    explorers={explorersToShow}
-                    searchHighlight={highlight}
-                    indexPage={this}
-                />
-                <br />
-                <br />
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Slug</TableHead>
+                            <TableHead>Title</TableHead>
+                            <TableHead>Last Updated</TableHead>
+                            <TableHead className="w-[80px]" />
+                            <TableHead className="w-[100px]" />
+                            <TableHead className="w-[80px]" />
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {visibleExplorers.map((explorer) => {
+                            const {
+                                slug,
+                                lastCommit,
+                                googleSheet,
+                                isPublished,
+                                explorerTitle,
+                                title,
+                                grapherCount,
+                                tableCount,
+                            } = explorer
+
+                            const publishedUrl = `${BAKED_BASE_URL}/${EXPLORERS_ROUTE_FOLDER}/${slug}`
+                            const titleToShow = explorerTitle ?? title ?? ""
+                            const hasEdits = localStorage.getItem(
+                                `${UNSAVED_EXPLORER_DRAFT}${slug}`
+                            )
+
+                            return (
+                                <TableRow key={slug}>
+                                    <TableCell>
+                                        {!isPublished ? (
+                                            <span className="text-muted-foreground">
+                                                {highlightMatch(
+                                                    slug,
+                                                    searchInput
+                                                )}
+                                            </span>
+                                        ) : (
+                                            <a href={publishedUrl}>
+                                                {highlightMatch(
+                                                    slug,
+                                                    searchInput
+                                                )}
+                                            </a>
+                                        )}
+                                        {" - "}
+                                        <a
+                                            href={`/admin/${EXPLORERS_PREVIEW_ROUTE}/${slug}`}
+                                        >
+                                            Preview
+                                        </a>
+                                    </TableCell>
+                                    <TableCell>
+                                        {highlightMatch(
+                                            titleToShow,
+                                            searchInput
+                                        )}
+                                        <div className="text-xs text-muted-foreground">
+                                            {`${grapherCount} grapher${
+                                                grapherCount > 1 ? "s" : ""
+                                            }. ${tableCount} table${tableCount === 1 ? "" : "s"}.`}
+                                        </div>
+                                    </TableCell>
+                                    <TableCell>
+                                        <div>{lastCommit?.message}</div>
+                                        <div className="text-xs text-muted-foreground">
+                                            {lastCommit
+                                                ? dayjs(
+                                                      lastCommit.date
+                                                  ).fromNow()
+                                                : ""}{" "}
+                                            by {lastCommit?.author_name}
+                                            {googleSheet && (
+                                                <>
+                                                    {" | "}
+                                                    <a href={googleSheet}>
+                                                        Google Sheet
+                                                    </a>
+                                                </>
+                                            )}
+                                        </div>
+                                    </TableCell>
+                                    <TableCell>
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            asChild
+                                        >
+                                            <a
+                                                href={`${EXPLORERS_ROUTE_FOLDER}/${slug}`}
+                                                title={
+                                                    hasEdits
+                                                        ? "*You have local edits"
+                                                        : ""
+                                                }
+                                            >
+                                                Edit
+                                                {hasEdits ? "*" : ""}
+                                            </a>
+                                        </Button>
+                                    </TableCell>
+                                    <TableCell>
+                                        <Button
+                                            variant="destructive"
+                                            size="sm"
+                                            onClick={() =>
+                                                publishMutation.mutate(explorer)
+                                            }
+                                        >
+                                            {isPublished
+                                                ? "Unpublish"
+                                                : "Publish"}
+                                        </Button>
+                                    </TableCell>
+                                    <TableCell>
+                                        <Button
+                                            variant="destructive"
+                                            size="sm"
+                                            onClick={() => handleDelete(slug)}
+                                        >
+                                            Delete
+                                        </Button>
+                                    </TableCell>
+                                </TableRow>
+                            )
+                        })}
+                    </TableBody>
+                </Table>
+                {visibleExplorers.length < filteredExplorers.length && (
+                    <div className="mt-4 text-center">
+                        <Button
+                            variant="outline"
+                            onClick={() =>
+                                setMaxVisibleRows((prev) => prev + 100)
+                            }
+                        >
+                            Show more
+                        </Button>
+                    </div>
+                )}
             </main>
-        )
-    }
-
-    isReady = false
-
-    private async fetchAllExplorers() {
-        const { searchInput } = this
-
-        const response = await fetch(`/admin/${GetAllExplorersRoute}`)
-        const json = (await response.json()) as ExplorersRouteResponse
-        if (!json.success) alert(JSON.stringify(json.errorMessage))
-        this.isReady = true
-        runInAction(() => {
-            if (searchInput === this.searchInput) {
-                this.explorers = json.explorers.map(
-                    (exp: SerializedGridProgram) =>
-                        ExplorerProgram.fromJson(exp)
-                )
-                this.numTotalRows = json.explorers.length
-                this.highlightSearch = searchInput
-            }
-        })
-    }
-
-    @computed private get manager() {
-        return this.props.manager ?? {}
-    }
-
-    @action.bound private loadingModalOn() {
-        this.manager.loadingIndicatorSetting = "loading"
-    }
-
-    @action.bound private resetLoadingModal() {
-        this.manager.loadingIndicatorSetting = "default"
-    }
-
-    @action.bound async togglePublishedStatus(slug: string) {
-        const explorer = this.explorers.find((exp) => exp.slug === slug)!
-        const newVersion = explorer.setPublished(!explorer.isPublished)
-
-        this.loadingModalOn()
-
-        // Call the API to save the explorer
-        const commitMessage = `Setting publish status of ${explorer.slug} to ${newVersion.isPublished}`
-
-        const res = await this.context.admin.requestJSON(
-            `/api/explorers/${explorer.slug}`,
-            {
-                tsv: newVersion.toString(),
-                commitMessage: commitMessage,
-            },
-            "PUT"
-        )
-
-        if (!res.success) {
-            alert(`Saving the explorer failed!\n\n${res.error}`)
-            return
-        }
-
-        this.resetLoadingModal()
-        await this.fetchAllExplorers()
-    }
-
-    @action.bound async deleteExplorer(slug: string) {
-        if (!confirm(`Are you sure you want to delete "${slug}"?`)) return
-
-        this.loadingModalOn()
-
-        await this.context.admin.requestJSON(
-            `/api/explorers/${slug}`,
-            {},
-            "DELETE"
-        )
-        this.resetLoadingModal()
-        await this.fetchAllExplorers()
-    }
-
-    dispose!: IReactionDisposer
-    override componentDidMount() {
-        this.dispose = reaction(
-            () => this.searchInput || this.maxVisibleRows,
-            _.debounce(() => this.fetchAllExplorers(), 200)
-        )
-        void this.fetchAllExplorers()
-    }
-
-    override componentWillUnmount() {
-        this.dispose()
-    }
+        </AdminLayout>
+    )
 }
