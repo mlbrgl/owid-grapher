@@ -8,6 +8,7 @@ import {
 import { TooltipProvider } from "adminNext/components/ui/tooltip"
 import { AppShell } from "./components/shell/AppShell.js"
 import { ChartsScreen } from "./screens/charts/ChartsScreen.js"
+import { DataInsightsScreen } from "./screens/data-insights/DataInsightsScreen.js"
 
 const queryClient = new QueryClient({
     defaultOptions: {
@@ -32,15 +33,10 @@ function AppRoutes() {
         <Routes>
             <Route element={<AppShell />}>
                 <Route index element={<Navigate to="charts" replace />} />
-                <Route
-                    path="charts"
-                    element={<ChartsScreen />}
-                />
+                <Route path="charts" element={<ChartsScreen />} />
                 <Route
                     path="narrative-charts"
-                    element={
-                        <PlaceholderScreen title="Narrative Charts" />
-                    }
+                    element={<PlaceholderScreen title="Narrative Charts" />}
                 />
                 <Route
                     path="multi-dims"
@@ -48,14 +44,9 @@ function AppRoutes() {
                 />
                 <Route
                     path="featured-metrics"
-                    element={
-                        <PlaceholderScreen title="Featured Metrics" />
-                    }
+                    element={<PlaceholderScreen title="Featured Metrics" />}
                 />
-                <Route
-                    path="data-insights"
-                    element={<PlaceholderScreen title="Data Insights" />}
-                />
+                <Route path="data-insights" element={<DataInsightsScreen />} />
                 <Route
                     path="gdocs"
                     element={<PlaceholderScreen title="Google Docs" />}
@@ -98,9 +89,7 @@ function AppRoutes() {
                 />
                 <Route
                     path="utilities/callout-functions"
-                    element={
-                        <PlaceholderScreen title="Callout Functions" />
-                    }
+                    element={<PlaceholderScreen title="Callout Functions" />}
                 />
                 <Route
                     path="*"
