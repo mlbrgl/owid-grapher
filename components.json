@@ -1,0 +1,20 @@
+{
+    "$schema": "https://ui.shadcn.com/schema.json",
+    "style": "new-york",
+    "rsc": false,
+    "tsx": true,
+    "tailwind": {
+        "config": "",
+        "css": "adminNext/tailwind.css",
+        "baseColor": "neutral",
+        "cssVariables": true
+    },
+    "aliases": {
+        "components": "adminNext/components",
+        "utils": "adminNext/lib/utils",
+        "ui": "adminNext/components/ui",
+        "lib": "adminNext/lib",
+        "hooks": "adminNext/lib"
+    },
+    "iconLibrary": "lucide"
+}

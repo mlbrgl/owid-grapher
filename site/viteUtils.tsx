@@ -202,6 +202,7 @@ const viteAssets = (
         : devAssets(entrypoint, VITE_DEV_URL)
 
 export const viteAssetsForAdmin = () => viteAssets(ViteEntryPoint.Admin)
+export const viteAssetsForAdminNext = () => viteAssets(ViteEntryPoint.AdminNext)
 export const viteAssetsForSite = ({
     staticAssetMap,
 }: { staticAssetMap?: AssetMap } = {}) =>

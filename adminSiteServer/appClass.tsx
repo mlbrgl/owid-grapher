@@ -5,6 +5,7 @@ import http from "http"
 import { BAKED_BASE_URL, ENV } from "../settings/serverSettings.js"
 import * as db from "../db/db.js"
 import { IndexPage } from "./IndexPage.js"
+import { IndexPageNext } from "./IndexPageNext.js"
 import {
     apiKeyAuthMiddleware,
     cloudflareAuthMiddleware,
@@ -67,21 +68,30 @@ export class OwidAdminApp {
         app.use(express.urlencoded({ extended: true, limit: "50mb" }))
 
         app.use("/admin", apiKeyAuthMiddleware)
+        app.use("/admin-next", apiKeyAuthMiddleware)
 
         if (ENV === "staging") {
             app.use("/admin", tailscaleAuthMiddleware)
+            app.use("/admin-next", tailscaleAuthMiddleware)
         } else if (ENV === "production") {
             app.use("/admin", cloudflareAuthMiddleware)
+            app.use("/admin-next", cloudflareAuthMiddleware)
         } else if (ENV === "development") {
             app.use("/admin", devAuthMiddleware)
+            app.use("/admin-next", devAuthMiddleware)
         }
 
-        // Require authentication (only for /admin requests)
+        // Require authentication (only for /admin and /admin-next requests)
         app.use("/admin", requireAdminAuthMiddleware)
+        app.use("/admin-next", requireAdminAuthMiddleware)
 
         app.use("/", express.static("public"))
         app.use("/assets", express.static("dist/assets"))
         app.use("/assets-admin", express.static("dist/assets-admin"))
+        app.use(
+            "/assets-admin-next",
+            express.static("dist/assets-admin-next")
+        )
 
         app.use("/api", publicApiRouter.router)
         app.use("/admin/api", apiRouter.router)
@@ -93,6 +103,19 @@ export class OwidAdminApp {
             res.send(
                 renderToHtmlPage(
                     <IndexPage
+                        email={res.locals.user.email}
+                        username={res.locals.user.fullName}
+                        isSuperuser={res.locals.user.isSuperuser}
+                    />
+                )
+            )
+        })
+
+        // Default route: new admin SPA
+        app.get("/admin-next/{*splat}", async (req, res) => {
+            res.send(
+                renderToHtmlPage(
+                    <IndexPageNext
                         email={res.locals.user.email}
                         username={res.locals.user.fullName}
                         isSuperuser={res.locals.user.isSuperuser}

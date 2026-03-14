@@ -1,5 +1,7 @@
+import path from "path"
 import { defineConfig } from "vite"
 import pluginReact from "@vitejs/plugin-react"
+import tailwindcss from "@tailwindcss/vite"
 import optimizeReactAriaLocales from "@react-aria/optimize-locales-plugin"
 import { sentryVitePlugin } from "@sentry/vite-plugin"
 import * as clientSettings from "./settings/clientSettings.js"
@@ -17,6 +19,11 @@ export const defineViteConfigForEntrypoint = (entrypoint: ViteEntryPoint) => {
 
     return defineConfig({
         publicDir: false, // don't copy public folder to dist
+        resolve: {
+            alias: {
+                "adminNext/": path.resolve(__dirname, "adminNext") + "/",
+            },
+        },
         css: {
             devSourcemap: true,
             preprocessorOptions: {
@@ -74,6 +81,7 @@ export const defineViteConfigForEntrypoint = (entrypoint: ViteEntryPoint) => {
             },
         },
         plugins: [
+            tailwindcss(),
             pluginReact({
                 babel: {
                     parserOpts: {

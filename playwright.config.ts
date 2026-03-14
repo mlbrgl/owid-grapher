@@ -3,8 +3,8 @@ import { defineBddConfig } from "playwright-bdd"
 import { BAKED_BASE_URL, ENV } from "./settings/clientSettings.ts"
 
 const testDir = defineBddConfig({
-    features: "features/**/*.feature",
-    steps: "features/**/*.steps.ts",
+    features: ["features/**/*.feature", "adminNext/features/**/*.feature"],
+    steps: ["features/**/*.steps.ts", "adminNext/features/**/*.steps.ts"],
     aiFix: {
         promptAttachment: true,
     },
