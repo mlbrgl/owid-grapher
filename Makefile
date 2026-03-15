@@ -77,7 +77,7 @@ up: require create-if-missing.env tmp-downloads/owid_metadata.sql.gz node_module
 		new-window -n welcome 'ADMIN_SERVER_PORT=$(ADMIN_SERVER_PORT) VITE_PORT=$(VITE_PORT) devTools/docker/banner.sh; exec $(LOGIN_SHELL)' \; \
 		bind R respawn-pane -k \; \
 		bind X kill-pane \; \
-		bind Q kill-server \; \
+		bind Q kill-session \; \
 		set -g mouse on \
 		|| make down
 
@@ -96,7 +96,7 @@ up.devcontainer: create-if-missing.env.devcontainer tmp-downloads/owid_metadata.
 		new-window -n welcome 'ADMIN_SERVER_PORT=$(ADMIN_SERVER_PORT) VITE_PORT=$(VITE_PORT) devTools/docker/banner.sh; exec $(LOGIN_SHELL)' \; \
 		bind R respawn-pane -k \; \
 		bind X kill-pane \; \
-		bind Q kill-server
+		bind Q kill-session
 
 up.full: export DEBUG = 'knex:query'
 up.full: export COMPOSE_PROJECT_NAME ?= owid-grapher
@@ -131,7 +131,7 @@ up.full: require create-if-missing.env.full tmp-downloads/owid_metadata.sql.gz n
 		new-window -n welcome 'ADMIN_SERVER_PORT=$(ADMIN_SERVER_PORT) VITE_PORT=$(VITE_PORT) WRANGLER_PORT=$(WRANGLER_PORT) devTools/docker/banner.sh; exec $(LOGIN_SHELL)' \; \
 		bind R respawn-pane -k \; \
 		bind X kill-pane \; \
-		bind Q kill-server \; \
+		bind Q kill-session \; \
 		set -g mouse on \
 		|| make down
 
@@ -272,7 +272,7 @@ playwright-browsers:
 	@echo '==> Installing Playwright browsers'
 	yarn playwright install --with-deps --no-shell
 
-bdd: export TMUX_SESSION_NAME ?= bdd
+bdd: export TMUX_SESSION_NAME = bdd
 
 bdd: node_modules playwright-browsers
 	@if tmux has-session -t $(TMUX_SESSION_NAME) 2>/dev/null; then \
@@ -292,9 +292,10 @@ bdd: node_modules playwright-browsers
 		bind R respawn-pane -k \; \
 		bind X kill-pane \; \
 		bind K kill-session \; \
+		bind Q kill-session \; \
 		set -g mouse on
 
-bdd.ui: export TMUX_SESSION_NAME ?= bdd-ui
+bdd.ui: export TMUX_SESSION_NAME = bdd-ui
 
 bdd.ui: node_modules playwright-browsers
 	@if tmux has-session -t $(TMUX_SESSION_NAME) 2>/dev/null; then \
@@ -314,6 +315,7 @@ bdd.ui: node_modules playwright-browsers
 		bind R respawn-pane -k \; \
 		bind X kill-pane \; \
 		bind K kill-session \; \
+		bind Q kill-session \; \
 		set -g mouse on
 
 lint: node_modules
