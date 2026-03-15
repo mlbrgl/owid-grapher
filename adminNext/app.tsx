@@ -7,6 +7,7 @@ import {
 } from "react-router-dom-v5-compat"
 import { TooltipProvider } from "adminNext/components/ui/tooltip"
 import { AppShell } from "./components/shell/AppShell.js"
+import { ChartsScreen } from "./screens/charts/ChartsScreen.js"
 
 const queryClient = new QueryClient({
     defaultOptions: {
@@ -33,7 +34,7 @@ function AppRoutes() {
                 <Route index element={<Navigate to="charts" replace />} />
                 <Route
                     path="charts"
-                    element={<PlaceholderScreen title="Charts" />}
+                    element={<ChartsScreen />}
                 />
                 <Route
                     path="narrative-charts"

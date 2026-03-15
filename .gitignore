@@ -58,3 +58,11 @@ playwright-report/
 
 # Claude
 .claude/settings.local.json
+
+# Gas Town (added by gt)
+.runtime/
+.claude/
+.logs/
+.beads/
+__pycache__/
+state.json
