@@ -1,13 +1,9 @@
-import { Outlet, useSearchParams } from "react-router-dom-v5-compat"
+import { Outlet } from "react-router-dom-v5-compat"
 import { NavigationRail } from "./NavigationRail.js"
 import { Breadcrumb } from "./Breadcrumb.js"
 import { CommandPalette } from "./CommandPalette.js"
-import { ContextPanel } from "./ContextPanel.js"
 
 export function AppShell() {
-    const [searchParams] = useSearchParams()
-    const hasContextPanel = searchParams.get("selected") !== null
-
     return (
         <div
             data-testid="app-shell"
@@ -32,17 +28,13 @@ export function AppShell() {
                     </span>
                 </header>
 
-                {/* Workspace + Context Panel */}
-                <div className="flex flex-1 overflow-hidden">
-                    <main
-                        data-testid="workspace"
-                        className="flex-1 overflow-auto"
-                    >
-                        <Outlet />
-                    </main>
-
-                    {hasContextPanel && <ContextPanel />}
-                </div>
+                {/* Workspace */}
+                <main
+                    data-testid="workspace"
+                    className="flex-1 overflow-auto"
+                >
+                    <Outlet />
+                </main>
             </div>
         </div>
     )

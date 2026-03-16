@@ -60,7 +60,7 @@ export function GdocsScreen() {
         : undefined
 
     return (
-        <div data-testid="gdocs-screen" className="flex h-full">
+        <div data-testid="gdocs-screen" className="relative flex h-full">
             <div className="flex-1 overflow-auto p-6">
                 <div className="mb-6">
                     <h1 className="text-2xl font-semibold">Google Docs</h1>

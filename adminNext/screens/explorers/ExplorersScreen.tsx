@@ -113,7 +113,7 @@ export function ExplorersScreen() {
         : undefined
 
     return (
-        <div data-testid="explorers-screen" className="flex h-full">
+        <div data-testid="explorers-screen" className="relative flex h-full">
             <div className="flex-1 overflow-auto p-6">
                 <div className="mb-6">
                     <h1 className="text-2xl font-semibold">Explorers</h1>
