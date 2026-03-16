@@ -11,6 +11,7 @@ import { ChartsScreen } from "./screens/charts/ChartsScreen.js"
 import { NarrativeChartsScreen } from "./screens/narrative-charts/NarrativeChartsScreen.js"
 import { DataInsightsScreen } from "./screens/data-insights/DataInsightsScreen.js"
 import { MultiDimsScreen } from "./screens/multi-dims/MultiDimsScreen.js"
+import { ExplorersScreen } from "./screens/explorers/ExplorersScreen.js"
 
 const queryClient = new QueryClient({
     defaultOptions: {
@@ -53,10 +54,7 @@ function AppRoutes() {
                     path="gdocs"
                     element={<PlaceholderScreen title="Google Docs" />}
                 />
-                <Route
-                    path="explorers"
-                    element={<PlaceholderScreen title="Explorers" />}
-                />
+                <Route path="explorers" element={<ExplorersScreen />} />
                 <Route
                     path="datasets"
                     element={<PlaceholderScreen title="Datasets" />}
