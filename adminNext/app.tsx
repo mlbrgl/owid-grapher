@@ -10,6 +10,7 @@ import { AppShell } from "./components/shell/AppShell.js"
 import { ChartsScreen } from "./screens/charts/ChartsScreen.js"
 import { NarrativeChartsScreen } from "./screens/narrative-charts/NarrativeChartsScreen.js"
 import { DataInsightsScreen } from "./screens/data-insights/DataInsightsScreen.js"
+import { MultiDimsScreen } from "./screens/multi-dims/MultiDimsScreen.js"
 
 const queryClient = new QueryClient({
     defaultOptions: {
@@ -41,7 +42,7 @@ function AppRoutes() {
                 />
                 <Route
                     path="multi-dims"
-                    element={<PlaceholderScreen title="Multi-dims" />}
+                    element={<MultiDimsScreen />}
                 />
                 <Route
                     path="featured-metrics"
