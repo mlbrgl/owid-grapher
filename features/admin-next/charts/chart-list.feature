@@ -26,5 +26,5 @@ Feature: Charts list screen
         And the chart detail panel shows the last edited info
 
     Scenario: Direct URL with selected param opens detail panel
-        Given I navigate to the admin-next charts page with "?selected=1"
+        Given I navigate to the admin-next charts page with the first chart selected
         Then the chart detail panel is visible

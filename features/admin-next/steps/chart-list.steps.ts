@@ -12,11 +12,29 @@ Given("I navigate to the admin-next charts page with {string}", async ({ page },
     await page.waitForSelector("[data-testid='app-shell']")
 })
 
+Given("I navigate to the admin-next charts page with the first chart selected", async ({ page }) => {
+    // First load the page and wait for chart data
+    await page.goto(`${ADMIN_NEXT_BASE}/charts`)
+    await page.waitForSelector("[data-testid='app-shell']")
+    await expect(
+        page.locator("[data-testid='data-table'] tbody")
+    ).not.toContainText("Loading")
+    // Extract the first chart's ID from the first row's first cell
+    const firstId = await page.locator("[data-testid='data-table'] tbody tr td").first().innerText()
+    // Navigate with the selected param
+    await page.goto(`${ADMIN_NEXT_BASE}/charts?selected=${firstId}`)
+    await page.waitForSelector("[data-testid='app-shell']")
+})
+
 // --- When steps ---
 
 When("I click the first chart row", async ({ page }) => {
+    // Wait for data to load — the loading placeholder shows "Loading..." text
+    // and has no click handler, so we must wait for actual data rows
+    await expect(
+        page.locator("[data-testid='data-table'] tbody")
+    ).not.toContainText("Loading")
     const row = page.locator("[data-testid='data-table'] tbody tr").first()
-    await expect(row).toBeVisible()
     await row.click()
 })
 
