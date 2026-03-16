@@ -137,20 +137,24 @@ function createColumns(ctx: {
             dataIndex: "title",
             key: "title",
             width: 300,
-            render: (title, dataInsight) =>
-                dataInsight.published &&
-                dayjs(dataInsight.publishedAt).isBefore(dayjs()) &&
-                dataInsight.slug ? (
+            render: (title, dataInsight) => {
+                const isPublished =
+                    dataInsight.published &&
+                    dayjs(dataInsight.publishedAt).isBefore(dayjs()) &&
+                    dataInsight.slug
+                const href = isPublished
+                    ? makeDataInsightLink(dataInsight)
+                    : makePreviewLink(dataInsight)
+                return (
                     <a
-                        href={makeDataInsightLink(dataInsight)}
+                        href={href}
                         target="_blank"
                         rel="noreferrer noopener"
                     >
                         {ctx.highlightFn(title)}
                     </a>
-                ) : (
-                    ctx.highlightFn(title)
-                ),
+                )
+            },
         },
         {
             title: "Authors",

@@ -1611,6 +1611,11 @@ main:not(.ChartEditorPage):not(.GdocsEditPage):not(.MultiDimDetailPage) {
 }
 
 .DataInsightIndexPage {
+    .ant-table-cell {
+        overflow-wrap: break-word;
+        word-break: break-word;
+    }
+
     .ant-card-body {
         padding: 8px;
 
