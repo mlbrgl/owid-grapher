@@ -35,7 +35,7 @@ export function DetailPanelShell({
             {/* Overlay backdrop */}
             <div
                 data-testid="detail-panel-overlay"
-                className="absolute inset-0 z-10 bg-black/20"
+                className="fixed inset-0 z-40 bg-black/20"
                 style={{ animation: "fade-in 200ms ease-out" }}
                 onClick={close}
             />
@@ -43,7 +43,7 @@ export function DetailPanelShell({
             {/* Slide-in panel */}
             <div
                 data-testid="detail-panel"
-                className="relative z-20 w-[40%] shrink-0 border-l bg-background flex flex-col overflow-hidden"
+                className="fixed top-0 right-0 z-50 h-full w-[40%] border-l bg-background flex flex-col overflow-hidden shadow-xl"
                 style={{ animation: "slide-in-from-right 200ms ease-out" }}
             >
                 <div className="flex items-center justify-between border-b px-4 py-3">

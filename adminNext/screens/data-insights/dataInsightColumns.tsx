@@ -64,22 +64,17 @@ export const dataInsightColumns: ColumnDef<DataInsightRow>[] = [
         ),
         cell: ({ row }) => {
             const item = row.original
-            const isPublished =
-                item.publicationStatus === "published" && item.slug
             return (
-                <div className="max-w-[350px]">
-                    {isPublished ? (
-                        <a
-                            href={`/admin/gdocs/${item.id}/preview`}
-                            target="_blank"
-                            rel="noreferrer noopener"
-                            className="font-medium text-blue-600 hover:underline"
-                        >
-                            {item.title}
-                        </a>
-                    ) : (
-                        <span className="font-medium">{item.title}</span>
-                    )}
+                <div className="max-w-[350px] truncate">
+                    <a
+                        href={`/admin/gdocs/${item.id}/preview`}
+                        target="_blank"
+                        rel="noreferrer noopener"
+                        className="font-medium text-blue-600 hover:underline"
+                        title={item.title}
+                    >
+                        {item.title}
+                    </a>
                 </div>
             )
         },
