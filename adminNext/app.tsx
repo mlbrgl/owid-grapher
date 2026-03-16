@@ -8,6 +8,7 @@ import {
 import { TooltipProvider } from "adminNext/components/ui/tooltip"
 import { AppShell } from "./components/shell/AppShell.js"
 import { ChartsScreen } from "./screens/charts/ChartsScreen.js"
+import { NarrativeChartsScreen } from "./screens/narrative-charts/NarrativeChartsScreen.js"
 import { DataInsightsScreen } from "./screens/data-insights/DataInsightsScreen.js"
 
 const queryClient = new QueryClient({
@@ -36,7 +37,7 @@ function AppRoutes() {
                 <Route path="charts" element={<ChartsScreen />} />
                 <Route
                     path="narrative-charts"
-                    element={<PlaceholderScreen title="Narrative Charts" />}
+                    element={<NarrativeChartsScreen />}
                 />
                 <Route
                     path="multi-dims"
