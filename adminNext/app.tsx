@@ -13,6 +13,7 @@ import { DataInsightsScreen } from "./screens/data-insights/DataInsightsScreen.j
 import { MultiDimsScreen } from "./screens/multi-dims/MultiDimsScreen.js"
 import { ExplorersScreen } from "./screens/explorers/ExplorersScreen.js"
 import { GdocsScreen } from "./screens/gdocs/GdocsScreen.js"
+import { DatasetsScreen } from "./screens/datasets/DatasetsScreen.js"
 
 const queryClient = new QueryClient({
     defaultOptions: {
@@ -42,10 +43,7 @@ function AppRoutes() {
                     path="narrative-charts"
                     element={<NarrativeChartsScreen />}
                 />
-                <Route
-                    path="multi-dims"
-                    element={<MultiDimsScreen />}
-                />
+                <Route path="multi-dims" element={<MultiDimsScreen />} />
                 <Route
                     path="featured-metrics"
                     element={<PlaceholderScreen title="Featured Metrics" />}
@@ -53,10 +51,7 @@ function AppRoutes() {
                 <Route path="data-insights" element={<DataInsightsScreen />} />
                 <Route path="gdocs" element={<GdocsScreen />} />
                 <Route path="explorers" element={<ExplorersScreen />} />
-                <Route
-                    path="datasets"
-                    element={<PlaceholderScreen title="Datasets" />}
-                />
+                <Route path="datasets" element={<DatasetsScreen />} />
                 <Route
                     path="variables"
                     element={<PlaceholderScreen title="Variables" />}
