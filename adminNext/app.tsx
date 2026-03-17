@@ -15,6 +15,7 @@ import { ExplorersScreen } from "./screens/explorers/ExplorersScreen.js"
 import { GdocsScreen } from "./screens/gdocs/GdocsScreen.js"
 import { DatasetsScreen } from "./screens/datasets/DatasetsScreen.js"
 import { FeaturedMetricsScreen } from "./screens/featured-metrics/FeaturedMetricsScreen.js"
+import { VariablesScreen } from "./screens/variables/VariablesScreen.js"
 
 const queryClient = new QueryClient({
     defaultOptions: {
@@ -53,10 +54,7 @@ function AppRoutes() {
                 <Route path="gdocs" element={<GdocsScreen />} />
                 <Route path="explorers" element={<ExplorersScreen />} />
                 <Route path="datasets" element={<DatasetsScreen />} />
-                <Route
-                    path="variables"
-                    element={<PlaceholderScreen title="Variables" />}
-                />
+                <Route path="variables" element={<VariablesScreen />} />
                 <Route
                     path="tags"
                     element={<PlaceholderScreen title="Tags" />}

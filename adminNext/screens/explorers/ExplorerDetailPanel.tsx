@@ -30,7 +30,10 @@ export function ExplorerDetailPanel({
     explorer: ExplorerListItem
 }) {
     return (
-        <DetailPanelShell title="Explorer Details">
+        <DetailPanelShell
+            title="Explorer Details"
+            testId="explorer-detail-panel"
+        >
             <div className="space-y-4">
                 {/* Title & slug */}
                 <div>
@@ -45,9 +48,7 @@ export function ExplorerDetailPanel({
                 {/* Status badge */}
                 <div className="flex flex-wrap gap-2">
                     <Badge
-                        variant={
-                            explorer.isPublished ? "default" : "secondary"
-                        }
+                        variant={explorer.isPublished ? "default" : "secondary"}
                     >
                         {explorer.isPublished ? "Published" : "Draft"}
                     </Badge>
@@ -75,9 +76,7 @@ export function ExplorerDetailPanel({
                     </div>
                     <div className="flex items-center gap-2">
                         <FileSpreadsheet className="size-4 text-muted-foreground" />
-                        <span className="text-muted-foreground">
-                            Content
-                        </span>
+                        <span className="text-muted-foreground">Content</span>
                         <span>
                             {explorer.grapherCount} grapher
                             {explorer.grapherCount !== 1 ? "s" : ""},{" "}
@@ -95,9 +94,7 @@ export function ExplorerDetailPanel({
                             <h4 className="mb-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                                 Last Commit
                             </h4>
-                            <p className="text-sm">
-                                {explorer.commitMessage}
-                            </p>
+                            <p className="text-sm">{explorer.commitMessage}</p>
                         </div>
                     </>
                 )}

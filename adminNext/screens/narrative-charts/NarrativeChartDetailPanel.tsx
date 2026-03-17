@@ -23,7 +23,10 @@ export function NarrativeChartDetailPanel({
     narrativeChart: NarrativeChartListItem
 }) {
     return (
-        <DetailPanelShell title="Narrative Chart Details">
+        <DetailPanelShell
+            title="Narrative Chart Details"
+            testId="narrative-chart-detail-panel"
+        >
             <div className="space-y-4">
                 {/* Title & name */}
                 <div>
@@ -50,9 +53,7 @@ export function NarrativeChartDetailPanel({
                 <div className="space-y-3 text-sm">
                     <div className="flex items-center gap-2">
                         <Link2 className="size-4 text-muted-foreground" />
-                        <span className="text-muted-foreground">
-                            Parent
-                        </span>
+                        <span className="text-muted-foreground">Parent</span>
                         <span className="font-medium truncate">
                             {narrativeChart.parent.url ? (
                                 <a
@@ -85,9 +86,7 @@ export function NarrativeChartDetailPanel({
                             <span className="text-muted-foreground">
                                 Last edited
                             </span>
-                            <span>
-                                {formatDate(narrativeChart.updatedAt)}
-                            </span>
+                            <span>{formatDate(narrativeChart.updatedAt)}</span>
                         </div>
                     )}
                 </div>

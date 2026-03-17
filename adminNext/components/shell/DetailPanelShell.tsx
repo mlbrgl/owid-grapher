@@ -5,9 +5,11 @@ import { X } from "lucide-react"
 export function DetailPanelShell({
     title,
     children,
+    testId,
 }: {
     title: string
     children: React.ReactNode
+    testId?: string
 }) {
     const [, setSearchParams] = useSearchParams()
 
@@ -42,7 +44,7 @@ export function DetailPanelShell({
 
             {/* Slide-in panel */}
             <div
-                data-testid="detail-panel"
+                data-testid={testId ?? "detail-panel"}
                 className="fixed top-0 right-0 z-50 h-full w-[40%] border-l bg-background flex flex-col overflow-hidden shadow-xl"
                 style={{ animation: "slide-in-from-right 200ms ease-out" }}
             >

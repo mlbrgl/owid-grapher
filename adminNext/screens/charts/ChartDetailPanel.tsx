@@ -40,7 +40,7 @@ function formatChartType(type: string | undefined): string {
 
 export function ChartDetailPanel({ chart }: { chart: ChartListItem }) {
     return (
-        <DetailPanelShell title="Chart Details">
+        <DetailPanelShell title="Chart Details" testId="chart-detail-panel">
             <div className="space-y-4">
                 {/* Title & slug */}
                 <div>
@@ -60,18 +60,14 @@ export function ChartDetailPanel({ chart }: { chart: ChartListItem }) {
                 {/* Status & type badges */}
                 <div className="flex flex-wrap gap-2">
                     <Badge
-                        variant={
-                            chart.isPublished ? "default" : "secondary"
-                        }
+                        variant={chart.isPublished ? "default" : "secondary"}
                     >
                         {chart.isPublished ? "Published" : "Draft"}
                     </Badge>
                     <Badge variant="outline">
                         {formatChartType(chart.type)}
                     </Badge>
-                    {chart.hasMapTab && (
-                        <Badge variant="outline">Map</Badge>
-                    )}
+                    {chart.hasMapTab && <Badge variant="outline">Map</Badge>}
                 </div>
 
                 <Separator />
@@ -116,9 +112,7 @@ export function ChartDetailPanel({ chart }: { chart: ChartListItem }) {
                     )}
                     <div className="flex items-center gap-2">
                         <Eye className="size-4 text-muted-foreground" />
-                        <span className="text-muted-foreground">
-                            Views/day
-                        </span>
+                        <span className="text-muted-foreground">Views/day</span>
                         <span>
                             {chart.grapherViewsPerDay
                                 ? chart.grapherViewsPerDay.toLocaleString()

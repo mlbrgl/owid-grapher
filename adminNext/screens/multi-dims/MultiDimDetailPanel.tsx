@@ -52,7 +52,10 @@ export function MultiDimDetailPanel({
     const redirects = redirectsData?.redirects ?? []
 
     return (
-        <DetailPanelShell title="Multi-dim Details">
+        <DetailPanelShell
+            title="Multi-dim Details"
+            testId="multi-dim-detail-panel"
+        >
             <div className="space-y-4">
                 {/* Title & slug */}
                 <div>
@@ -69,9 +72,7 @@ export function MultiDimDetailPanel({
                 {/* Status badge */}
                 <div className="flex flex-wrap gap-2">
                     <Badge
-                        variant={
-                            multiDim.published ? "default" : "secondary"
-                        }
+                        variant={multiDim.published ? "default" : "secondary"}
                     >
                         {multiDim.published ? "Published" : "Draft"}
                     </Badge>

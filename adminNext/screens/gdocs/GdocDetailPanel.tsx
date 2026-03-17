@@ -1,10 +1,4 @@
-import {
-    ExternalLink,
-    Pencil,
-    Calendar,
-    Users,
-    FileText,
-} from "lucide-react"
+import { ExternalLink, Pencil, Calendar, Users, FileText } from "lucide-react"
 import { Badge } from "adminNext/components/ui/badge"
 import { Button } from "adminNext/components/ui/button"
 import { Separator } from "adminNext/components/ui/separator"
@@ -43,7 +37,7 @@ export function GdocDetailPanel({ gdoc }: { gdoc: GdocRow }) {
         : "Unknown"
 
     return (
-        <DetailPanelShell title="Document Details">
+        <DetailPanelShell title="Document Details" testId="gdoc-detail-panel">
             <div className="space-y-4">
                 {/* Title & slug */}
                 <div>
@@ -61,11 +55,7 @@ export function GdocDetailPanel({ gdoc }: { gdoc: GdocRow }) {
 
                 {/* Status & type badges */}
                 <div className="flex flex-wrap gap-2">
-                    <Badge
-                        variant={
-                            gdoc.published ? "default" : "secondary"
-                        }
-                    >
+                    <Badge variant={gdoc.published ? "default" : "secondary"}>
                         {gdoc.published ? "Published" : "Draft"}
                     </Badge>
                     <Badge variant="outline">{typeLabel}</Badge>
@@ -97,9 +87,7 @@ export function GdocDetailPanel({ gdoc }: { gdoc: GdocRow }) {
                     )}
                     <div className="flex items-center gap-2">
                         <FileText className="size-4 text-muted-foreground" />
-                        <span className="text-muted-foreground">
-                            Type
-                        </span>
+                        <span className="text-muted-foreground">Type</span>
                         <span>{typeLabel}</span>
                     </div>
                 </div>
