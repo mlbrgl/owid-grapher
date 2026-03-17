@@ -14,6 +14,7 @@ import { MultiDimsScreen } from "./screens/multi-dims/MultiDimsScreen.js"
 import { ExplorersScreen } from "./screens/explorers/ExplorersScreen.js"
 import { GdocsScreen } from "./screens/gdocs/GdocsScreen.js"
 import { DatasetsScreen } from "./screens/datasets/DatasetsScreen.js"
+import { FeaturedMetricsScreen } from "./screens/featured-metrics/FeaturedMetricsScreen.js"
 
 const queryClient = new QueryClient({
     defaultOptions: {
@@ -46,7 +47,7 @@ function AppRoutes() {
                 <Route path="multi-dims" element={<MultiDimsScreen />} />
                 <Route
                     path="featured-metrics"
-                    element={<PlaceholderScreen title="Featured Metrics" />}
+                    element={<FeaturedMetricsScreen />}
                 />
                 <Route path="data-insights" element={<DataInsightsScreen />} />
                 <Route path="gdocs" element={<GdocsScreen />} />
